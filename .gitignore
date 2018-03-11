@@ -1,0 +1,6 @@
+# Downloaded Guix binaries.
+/downloads/
+
+# Editor files.
+*.swp
+*.swo

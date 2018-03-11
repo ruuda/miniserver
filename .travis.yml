@@ -1,0 +1,16 @@
+sudo: required
+language: c # Choose a minimal base image.
+
+script:
+  - sudo ./build.sh
+
+cache:
+  directories:
+    - downloads
+
+after_success:
+  # List output to confirm reproducibilty.
+  - sha256sum out/*
+
+notifications:
+  email: false
