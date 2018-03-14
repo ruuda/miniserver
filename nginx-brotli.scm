@@ -81,7 +81,8 @@
                (setenv "CC" "gcc")
                (format #t "environment variable `CC' set to `gcc'~%")
                (format #t "configure flags: ~s~%" flags)
-               (zero? (apply system* "./configure" flags)))))
+               (apply invoke "./configure" flags)
+               #t)))
          (add-after 'install 'install-man-page
            (lambda* (#:key outputs #:allow-other-keys)
              (let* ((out (assoc-ref outputs "out"))
@@ -102,4 +103,5 @@
                (rename-file (string-append out "/conf")
                             (string-append share "/conf"))
                (rename-file (string-append out "/html")
-                            (string-append share "/html"))))))))))
+                            (string-append share "/html"))
+               #t))))))))
