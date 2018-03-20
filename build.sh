@@ -76,9 +76,8 @@ fi
 
 printf '\n:: Packing archive ...\n\n'
 
-# `guix pack` does not have this `--from-file` option, but we can do an
-# expression that reads the file. Add a symlink to the archive so we can access
-# both binaries from /bin.
+# Export the archive. Add a symlink to the binaries to the archive so we can
+# access both binaries from /bin, without needing to know the hash.
 archive_path=$(
   guix pack                                    \
     --format=tarball                           \
