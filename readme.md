@@ -8,10 +8,13 @@ Features:
 
  * A recent Nginx, with Brotli support.
  * Acme-client to refresh your Letsencrypt certificates.
- * Systemd units to run both, using systemd's isolation features where it makes
-   sense, without the bloat of container runtimes.
- * Declarative configuration without moving parts.
  * Bit by bit reproducible.
+
+Planned features:
+
+ * Systemd units to run both, using systemd's isolation features where it
+   makes sense, without the bloat of container runtimes.
+ * Declarative configuration without moving parts.
 
 ## Building
 
