@@ -35,6 +35,15 @@
     (license l:bsd-2)
     (home-page "https://github.com/google/ngx_brotli")))
 
+;; The following package definition is inspired by the upstream Nginx package
+;; in the Guix repository at https://git.savannah.gnu.org/cgit/guix.git. The
+;; upstream package is defined in //gnu/packages/web.scm, and that file is
+;; licensed under that GNU General Public License version 3, or at your option,
+;; any later version.
+
+;; It would be great if we could simplify this further, to only adapt the build
+;; step that really needs to change (passing --add-module=ngx_brotli to
+;; configure).
 (define-public nginx-brotli
   (package
     (inherit nginx)
