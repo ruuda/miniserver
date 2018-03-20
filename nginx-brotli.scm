@@ -1,3 +1,10 @@
+;; Miniserver -- Nginx and Acme-client on CoreOS.
+;; Copyright 2018 Ruud van Asseldonk
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License version 3. A copy
+;; of the License is available in the root of the repository.
+
 (define-module (nginx-brotli)
   #:use-module ((guix licenses) #:prefix l:)
   #:use-module (guix build-system trivial)

@@ -46,3 +46,10 @@ or in a container:
 I needed to mount my host's `/etc/resolv.conf` inside the container to get
 networking to work. If you use `systemd-networkd`, networking might work out
 of the box.
+
+## License
+
+The code in this repository is licensed under the
+[GNU General Public License][gplv3], version 3.
+
+[gplv3]: https://www.gnu.org/licenses/gpl-3.0.html
