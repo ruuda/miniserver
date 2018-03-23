@@ -52,6 +52,11 @@ source $GUIX_PROFILE/etc/profile
 # up, and we can install packages from there.
 export GUIX_PACKAGE_PATH="$PWD"
 
+# For some reason things started failing when running this script in an Ubuntu
+# container, because /usr/sbin (which contains groupadd and useradd) was not in
+# the path. So add it to the path.
+export PATH="$PATH:/usr/sbin"
+
 groupadd --force --system guixbuild
 for i in `seq -w 1 10`; do
   useradd -g guixbuild -G guixbuild           \
