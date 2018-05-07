@@ -46,3 +46,13 @@ source "$HOME/.nix-profile/etc/profile.d/nix.sh"
 printf ':: Building Nginx and acme-client ...\n\n'
 
 nix build -f channel:nixos-18.03 nginx acme-client brotli
+
+printf ':: Building image ...\n\n'
+
+nix build -f image.nix
+image_path=$(nix path-info -f image.nix)
+
+mkdir -p out
+cp $image_path out/
+
+printf "\n:: Image written to out/$(basename $image_path) ...\n"
