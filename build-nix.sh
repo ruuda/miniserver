@@ -41,7 +41,7 @@ tar -xjf "downloads/$nixv.tar.bz2" -C /tmp/nix-unpack
 /tmp/nix-unpack/$nixv/install
 rm -fr /tmp/nix-unpack
 
-source /root/.nix-profile/etc/profile.d/nix.sh
+source "$HOME/.nix-profile/etc/profile.d/nix.sh"
 
 printf ':: Building Nginx and acme-client ...\n\n'
 
