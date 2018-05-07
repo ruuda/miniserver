@@ -2,10 +2,18 @@
 with pkgs;
 
 let
-  customNginx = nginx.overrideDerivation (oldAttrs: {
-    # Override the nginx package to cut down on the dependencies. It does expose
-    # *some* parameters that make a smaller Nginx, but that is not enough for my
-    # taste. I also want to disable geoip and all the xml stuff, I don't use it.
+  lightNginx = nginx.override {
+    # Remove dependency on libgd; It brings in a lot of transitive dependencies
+    # that we don't need (fontconfig, image codecs, etc.). Also disable other
+    # unnecessary dependencies.
+    gd = null;
+    withStream = false;
+    withMail = false;
+  };
+  customNginx = lightNginx.overrideDerivation (oldAttrs: {
+    # Override the light nginx package to cut down on the dependencies further.
+    # I also want to get rid of geoip and all of the xml stuff, but the package
+    # offers no options for that.
     configureFlags = [
       "--with-http_ssl_module"
       "--with-http_v2_module"
