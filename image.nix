@@ -40,8 +40,15 @@ in
         # echo "END DEPS"
 
         # TODO: Put symlinks binaries in /usr/bin.
-        # Generate the squashfs image.
+        # Generate the squashfs image. Pass the -no-fragments option to make
+        # the build reproducible; apparently splitting fragments is a
+        # nondeterministic multithreaded process.
         mksquashfs $(cat $closureInfo/store-paths) $out \
-          -keep-as-directory -all-root -b 1048576 -comp xz -Xdict-size 100%
+          -no-fragments      \
+          -keep-as-directory \
+          -all-root          \
+          -b 1048576         \
+          -comp xz           \
+          -Xdict-size 100%
       '';
   }
