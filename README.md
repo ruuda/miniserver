@@ -20,16 +20,16 @@ Planned features:
 
 The `build.sh` script builds the archive as follows:
 
- * Install [Guix][guix], a purely functional package manager.
- * Upgrade to a pinned version of the Guix System Distribution.
+ * Install [Nix][nix], a purely functional package manager.
+ * Upgrade to a pinned version of the NixOS stable channel. [FIXME]
  * Build a custom version of Nginx, with [`ngx_brotli`][ngx-brotli] module
    enabeld, and install Acme-client.
- * Export a self-contained archive with `guix pack`.
+ * Export a self-contained squashfs image. [FIXME: symlinks.]
 
-[guix]:       https://www.gnu.org/software/guix/
+[guix]:       https://nixos.org/nix/
 [ngx-brotli]: https://github.com/google/ngx_brotli
 
-Installing Guix is a pretty invasive operation that creates a `/gnu/store`
+Installing Nix is a pretty invasive operation that creates a `/nix/store`
 directory in the root filesystem, and adds build users. If you don't want to do
 this to your development machine, you can run `./build.sh` in a virtual machine,
 or in a container:
