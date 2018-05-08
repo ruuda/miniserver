@@ -40,8 +40,18 @@ let
       "--with-http_gzip_static_module"
       "--with-threads"
       "--with-pcre-jit"
-      "--add-module=${ngxBrotli}"
+      "--add-module=ngx_brotli"
     ];
+
+    # The nginx binary embeds its configure command line. If we would pass the
+    # ngx_brotli module store path directly to --add-module, the store path
+    # would therefore end up in the binary. That triggers Nix to detect the
+    # ngx_brotli source as a runtime dependency, even though it is not. Work
+    # around this issue by creating a symlink to the store path in the build
+    # directory. Then the configure flags no longer include the path itself.
+    preConfigure = oldAttrs.preConfigure + ''
+      ln -s ${ngxBrotli} ngx_brotli
+    '';
   });
 
 in
