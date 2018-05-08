@@ -49,8 +49,8 @@ nix build -f channel:nixos-18.03 nginx acme-client brotli
 
 printf ':: Building image ...\n\n'
 
-nix build -f image.nix
-image_path=$(nix path-info -f image.nix)
+nix build
+image_path=$(nix path-info -f default.nix)
 
 mkdir -p out
 cp $image_path out/
