@@ -21,8 +21,10 @@ Planned features:
 Building of the image is automated using [Nix][nix], a purely functional
 package manager:
 
-    nix build
-    cp $(nix path-info) miniserver.img
+    nix build --out-link miniserver.img
+    # TODO: Fix the filesystem so systemd can actually mount it.
+    # See also https://github.com/systemd/systemd/issues/5170#issuecomment-275732064.
+    systemd-nspawn --image miniserver.img --ephemeral -- /bin/nginx -V
 
 The build involves the following:
 
@@ -54,6 +56,7 @@ machine, or in a container:
         nix build
         cp $(nix path-info) miniserver.img
       "
+    systemd-nspawn --image miniserver.img --ephemeral -- /bin/nginx -V
 
 I needed to mount my host's `/etc/resolv.conf` inside the container to get
 networking to work. If you use `systemd-networkd`, networking might work out
