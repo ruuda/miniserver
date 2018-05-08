@@ -5,7 +5,7 @@ script:
 
 after_success:
   # List output to confirm reproducibilty.
-  - sha256sum $(nix path-info -f default.nix)
+  - sha256sum $(nix path-info)
 
 notifications:
   email: false

@@ -18,24 +18,29 @@ Planned features:
 
 ## Building
 
-The `build.sh` script builds the image as follows:
+Building of the image is automated using [Nix][nix], a purely functional
+package manager:
 
- * Install [Nix][nix], a purely functional package manager,
-   if not installed already.
- * Build a custom version of Nginx, with [`ngx_brotli`][ngx-brotli] module
-   enabeld, and build Acme-client. The packages are taken from a pinned
+    nix build
+    cp $(nix path-info) miniserver.img
+
+The build involves the following:
+
+ * Take the package definitions for `nginx` and `acme-client` from a pinned
    stable version of [Nixpkgs][nixpkgs].
- * Build a self-contained squashfs image. [FIXME: symlinks.]
- * Copy the resulting image into the `out` directory.
+ * Override `nginx` package to disable unused features (to reduce the number
+   of dependencies, and thereby attack surface and image size). Add the
+   [`ngx_brotli`][ngx-brotli] module for `brotli_static` support.
+ * Build a self-contained squashfs image.
 
 [nix]:        https://nixos.org/nix/
-[ngx-brotli]: https://github.com/google/ngx_brotli
 [nixpkgs]:    https://github.com/NixOS/nixpkgs
+[ngx-brotli]: https://github.com/google/ngx_brotli
 
 Installing Nix is a pretty invasive operation that creates a `/nix/store`
 directory in the root filesystem, and adds build users. If you don't want to do
-this to your development machine, you can run `./build.sh` in a virtual machine,
-or in a container:
+this to your development machine, you can run `./install-nix.sh` in a virtual
+machine, or in a container:
 
     sudo machinectl pull-tar 'https://cloud-images.ubuntu.com/releases/16.04/release/ubuntu-16.04-server-cloudimg-amd64-root.tar.xz' xenial
     sudo systemd-nspawn           \
@@ -44,7 +49,11 @@ or in a container:
       --bind-ro /etc/resolv.conf  \
       --bind $PWD:/build          \
       --chdir /build              \
-      ./build.sh
+      bash -c "
+        source install-nix.sh
+        nix build
+        cp $(nix path-info) miniserver.img
+      "
 
 I needed to mount my host's `/etc/resolv.conf` inside the container to get
 networking to work. If you use `systemd-networkd`, networking might work out
