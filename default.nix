@@ -1,6 +1,18 @@
-{pkgs ? import <nixpkgs> {}}:
-with pkgs;
+{ pkgs ?
+  let
+    # Default to a pinned version of Nixpkgs. The actual revision of the
+    # Nixpkgs repository is stored in a separate file (as a string literal).
+    # We then fetch that revision from Github and import it. The revision
+    # should periodically be updated to be the last commit of NixOS stable.
+    nixpkgsRev = import ./nixpkgs-pinned.nix;
+    pinnedNixpkgs = fetchTarball {
+      url = "https://github.com/NixOS/nixpkgs/archive/${nixpkgsRev}.tar.gz";
+    };
+  in
+    import pinnedNixpkgs {}
+}:
 
+with pkgs;
 let
   # Use the squashfskit fork, it produces reproducible images, unlike the
   # squashfs-tools shipped with NixOS.

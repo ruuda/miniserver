@@ -18,16 +18,19 @@ Planned features:
 
 ## Building
 
-The `build.sh` script builds the archive as follows:
+The `build.sh` script builds the image as follows:
 
- * Install [Nix][nix], a purely functional package manager.
- * Upgrade to a pinned version of the NixOS stable channel. [FIXME]
+ * Install [Nix][nix], a purely functional package manager,
+   if not installed already.
  * Build a custom version of Nginx, with [`ngx_brotli`][ngx-brotli] module
-   enabeld, and install Acme-client.
- * Export a self-contained squashfs image. [FIXME: symlinks.]
+   enabeld, and build Acme-client. The packages are taken from a pinned
+   stable version of [Nixpkgs][nixpkgs].
+ * Build a self-contained squashfs image. [FIXME: symlinks.]
+ * Copy the resulting image into the `out` directory.
 
-[guix]:       https://nixos.org/nix/
+[nix]:        https://nixos.org/nix/
 [ngx-brotli]: https://github.com/google/ngx_brotli
+[nixpkgs]:    https://github.com/NixOS/nixpkgs
 
 Installing Nix is a pretty invasive operation that creates a `/nix/store`
 directory in the root filesystem, and adds build users. If you don't want to do
