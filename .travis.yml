@@ -1,16 +1,11 @@
-sudo: required
-language: c # Choose a minimal base image.
+language: nix
 
 script:
-  - sudo ./build.sh
-
-cache:
-  directories:
-    - downloads
+  - nix build
 
 after_success:
   # List output to confirm reproducibilty.
-  - sha256sum out/*
+  - sha256sum $(nix path-info -f default.nix)
 
 notifications:
   email: false
