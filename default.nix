@@ -12,6 +12,7 @@ let
       rev = "3f97efa7d88b2b3deb6d37ac7a5ddfc517e9ce98";
     };
   });
+
   lightNginx = nginx.override {
     # Remove dependency on libgd; It brings in a lot of transitive dependencies
     # that we don't need (fontconfig, image codecs, etc.). Also disable other
@@ -20,18 +21,29 @@ let
     withStream = false;
     withMail = false;
   };
+
+  ngxBrotli = fetchFromGitHub {
+    owner = "google";
+    repo = "ngx_brotli";
+    sha256 = "04yx1n0wi3l2x37jd1ynl9951qxkn8xp42yv0mfp1qz9svips81n";
+    rev = "bfd2885b2da4d763fed18f49216bb935223cd34b";
+    fetchSubmodules = true;
+  };
+
   customNginx = lightNginx.overrideDerivation (oldAttrs: {
     # Override the light nginx package to cut down on the dependencies further.
     # I also want to get rid of geoip and all of the xml stuff, but the package
-    # offers no options for that.
+    # offers no options for that. Furthermore, enable the ngx_brotli module.
     configureFlags = [
       "--with-http_ssl_module"
       "--with-http_v2_module"
       "--with-http_gzip_static_module"
       "--with-threads"
       "--with-pcre-jit"
+      "--add-module=${ngxBrotli}"
     ];
   });
+
 in
   stdenv.mkDerivation {
     name = "miniserver.img";
