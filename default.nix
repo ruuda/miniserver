@@ -66,32 +66,56 @@ let
     '';
   });
 
+  # Put together the filesystem by copying from and symlinking to the Nix store.
+  # We need to do this, because unfortunately, "mksquashfs /foo/bar" will create
+  # a file system with bar in the root. So we cannot pass absolute paths to the
+  # store. To work around this, copy all of them, so we can run mksquashfs on
+  # the properly prepared directory. Then for symlinks, they are copied
+  # verbatim, with the path inside the $out directory. So these we symlink
+  # directly to the store, not to the copies in $out. So in the resulting image,
+  # those links will point to the right places.
+  imageDir = stdenv.mkDerivation {
+    name = "miniserver-filesystem";
+    buildInputs = [ customNginx acme-client ];
+    buildCommand = ''
+      # Although we only need /nix/store and /usr/bin, we need to create the
+      # other directories too so systemd can mount the API virtual filesystems
+      # there, when the image is used.
+      mkdir -p $out/dev
+      mkdir -p $out/etc
+      mkdir -p $out/nix/store
+      mkdir -p $out/proc
+      mkdir -p $out/run
+      mkdir -p $out/sys
+      mkdir -p $out/tmp
+      mkdir -p $out/usr/bin
+      mkdir -p $out/var
+      ln -s /usr/bin $out/bin
+      ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
+      ln -s ${acme-client}/bin/acme-client $out/usr/bin/acme-client
+      closureInfo=${closureInfo { rootPaths = [ customNginx acme-client ]; }}
+      for file in $(cat $closureInfo/store-paths); do
+        echo "copying $file"
+        cp --archive $file $out/nix/store
+      done
+    '';
+  };
 in
   stdenv.mkDerivation {
     name = "miniserver.img";
 
     nativeBuildInputs = [ squashfsKit ];
-    buildInputs = [ customNginx acme-client ];
+    buildInputs = [ imageDir ];
 
     buildCommand =
       ''
-        closureInfo=${closureInfo { rootPaths = [ customNginx acme-client ]; }}
-
-        # Uncomment to print dependencies in the build log.
-        # This is the easiest way I've found to do this.
-        # echo "BEGIN DEPS"
-        # cat $closureInfo/store-paths
-        # echo "END DEPS"
-
-        # TODO: Put symlinks binaries in /usr/bin.
         # Generate the squashfs image. Pass the -no-fragments option to make
         # the build reproducible; apparently splitting fragments is a
         # nondeterministic multithreaded process. Also set processors to 1 for
         # the same reason.
-        mksquashfs $(cat $closureInfo/store-paths) $out \
+        mksquashfs ${imageDir} $out \
           -no-fragments      \
           -processors 1      \
-          -keep-as-directory \
           -all-root          \
           -b 1048576         \
           -comp xz           \
