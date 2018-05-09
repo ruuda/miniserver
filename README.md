@@ -49,12 +49,12 @@ machine, or in a container:
       --bind-ro /etc/resolv.conf  \
       --bind $PWD:/build          \
       --chdir /build              \
-      bash -c "
-        source install-nix.sh
+      /bin/bash -c "
+        source ./install-nix.sh
         nix build
         cp $(nix path-info) miniserver.img
       "
-    systemd-nspawn --image miniserver.img --ephemeral -- /bin/nginx -V
+    sudo systemd-nspawn --image miniserver.img --ephemeral -- /usr/bin/nginx -V
 
 I needed to mount my host's `/etc/resolv.conf` inside the container to get
 networking to work. If you use `systemd-networkd`, networking might work out
