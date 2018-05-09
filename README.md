@@ -1,5 +1,7 @@
 # Miniserver
 
+[![Build Status][ci-img]][ci]
+
 Tools to build a minimal webserver, as a self-contained archive that contains
 Nginx and Acme-client, with configuration to run it under systemd on CoreOS
 Container Linux. A secure and simple way to host a static site.
@@ -65,4 +67,6 @@ of the box.
 The code in this repository is licensed under the
 [GNU General Public License][gplv3], version 3.
 
-[gplv3]: https://www.gnu.org/licenses/gpl-3.0.html
+[ci-img]: https://travis-ci.org/ruuda/miniserver.svg?branch=master
+[ci]:     https://travis-ci.org/ruuda/miniserver
+[gplv3]:  https://www.gnu.org/licenses/gpl-3.0.html
