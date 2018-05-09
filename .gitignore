@@ -1,5 +1,9 @@
-# Downloaded Guix binaries.
+# Downloaded binaries.
 /downloads/
+
+# Build outputs.
+/result
+/miniserver.img
 
 # Editor files.
 *.swp
