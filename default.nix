@@ -21,6 +21,13 @@
 
 with pkgs;
 let
+  # NixOS 18.03 ships both LibreSSL 2.5 and 2.6, but sets 2.5 as the default.
+  # We go for 2.6 instead. At the time of writing, 2.7 is released already,
+  # but 2.6 is still supported.
+  acme-client = pkgs.acme-client.override {
+    libressl = libressl_2_6;
+  };
+
   # Use the squashfskit fork, it produces reproducible images, unlike the
   # squashfs-tools shipped with NixOS.
   squashfsKit = squashfsTools.overrideDerivation (oldAttrs: {
@@ -39,6 +46,11 @@ let
     gd = null;
     withStream = false;
     withMail = false;
+
+    # Build Nginx against LibreSSL, rather than OpenSSL. This reduces the size
+    # of the image, as we don't have to include both OpenSSL and LibreSSL. But
+    # more importantly, I trust LibreSSL more than I trust OpenSSL.
+    openssl = libressl_2_6;
   };
 
   ngxBrotli = fetchFromGitHub {
