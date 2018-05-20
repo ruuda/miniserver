@@ -16,9 +16,7 @@ let
       # depends on the shadow package, that we like to get rid of. This does
       # mean that we have no /bin/login any more, but if we have no Bash, that
       # is not terribly useful anyway. The only way to run something is through
-      # ssh.
-      # TODO: I could write a small C program as alternative to /bin/login, that
-      # just prints a message and never returns.
+      # ssh. Replace /bin/login with our own /bin/notlogin.
       postPatch = ''
         substituteInPlace include/pathnames.h \
           --replace "/bin/login" "${self.notlogin}/bin/notlogin"
