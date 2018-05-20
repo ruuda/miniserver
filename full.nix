@@ -103,6 +103,22 @@ let
       done
       find $out -name "*kernel-install*" -exec rm {} \;
 
+      # The following directories are used by kernel-install apparently, these
+      # scripts get executed when a Kernel is replaced. But NixOS does not use
+      # that system anyway, and it deletes kernel-install. So delete these
+      # scripts as well.
+      rm -fr $out/lib/kernel
+
+      # This is a server, no need for X11 stuff. Remove it, because a script in
+      # there references Bash, and we would like to get rid of bash.
+      rm -fr $out/share/factory/etc/X11
+
+      # While we're at it, delete useless completions for things that we don't
+      # use anyway. And the PAM dir, because we removed PAM.
+      rm -fr $out/share/bash-completion
+      rm -fr $out/share/zsh
+      rm -fr $out/share/factory/etc/pam.d
+
       # Keep only libudev and libsystemd in the lib output.
       mkdir -p $out/lib
       mv $lib/lib/libnss* $out/lib/
