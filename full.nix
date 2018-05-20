@@ -13,9 +13,11 @@ let
       # mean that we have no /bin/login any more, but if we have no Bash, that
       # is not terribly useful anyway. The only way to run something is through
       # ssh.
+      # TODO: I could write a small C program as alternative to /bin/login, that
+      # just prints a message and never returns.
       postPatch = ''
         substituteInPlace include/pathnames.h \
-          --replace "/bin/login" "${self.coreutils}/bin/false"
+          --replace "/bin/login" "${self.coreutilsMinimal}/bin/false"
         substituteInPlace sys-utils/eject.c \
           --replace "/bin/umount" "$out/bin/umount"
       '';
