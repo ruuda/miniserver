@@ -9,13 +9,7 @@ let
     pam = null;
     notlogin = self.stdenv.mkDerivation {
       name = "notlogin";
-      src = ./notlogin.c;
-      buildCommand = ''
-        mkdir -p $out/bin
-        # Compile the simple C file, optimize for size (-Os).
-        ${self.gcc}/bin/gcc -o $out/bin/notlogin -Wall -Werror -Os $src
-        strip $out/bin/notlogin
-      '';
+      src = ./notlogin;
     };
     utillinuxMinimal = super.utillinuxMinimal.overrideDerivation (oldAttrs: {
       # Replace the upstream patch phase with our own, because the upstream one
