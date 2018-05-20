@@ -20,6 +20,7 @@ let
       bzip2 = null;
       kmod = null;
       libgpgerror = null;
+      libidn2 = null;
       libmicrohttpd = null;
       lz4 = null;
       pam = null;
@@ -49,12 +50,15 @@ let
   systemd = pkgs.systemd.overrideDerivation (oldAttrs: rec {
       removeFlags = [
         # "-Dkmod-path=${null}/bin/kmod"
+        "-Dlibidn2=true"
         "-Dlz4=true"
       ];
       mesonFlags = (lib.foldr lib.remove oldAttrs.mesonFlags removeFlags) ++ [
         "-Dbzip2=false"
+        "-Didn=false"
         "-Dkmod=false"
         "-Dkmod=false"
+        "-Dlibidn2=false"
         "-Dlz4=false"
         "-Dmicrohttpd=false"
         "-Dpam=false"
