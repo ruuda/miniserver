@@ -7,6 +7,16 @@
 let
   overlay = self: super: {
     pam = null;
+    notlogin = self.stdenv.mkDerivation {
+      name = "notlogin";
+      src = ./notlogin.c;
+      buildCommand = ''
+        mkdir -p $out/bin
+        # Compile the simple C file, optimize for size (-Os).
+        ${self.gcc}/bin/gcc -o $out/bin/notlogin -Wall -Werror -Os $src
+        strip $out/bin/notlogin
+      '';
+    };
     utillinuxMinimal = super.utillinuxMinimal.overrideDerivation (oldAttrs: {
       # Replace the upstream patch phase with our own, because the upstream one
       # depends on the shadow package, that we like to get rid of. This does
@@ -17,7 +27,7 @@ let
       # just prints a message and never returns.
       postPatch = ''
         substituteInPlace include/pathnames.h \
-          --replace "/bin/login" "${self.coreutilsMinimal}/bin/false"
+          --replace "/bin/login" "${self.notlogin}/bin/notlogin"
         substituteInPlace sys-utils/eject.c \
           --replace "/bin/umount" "$out/bin/umount"
       '';
@@ -156,4 +166,5 @@ in {
   rsync = rsync;
   nginx = userland.nginx;
   acme-client = userland.acme-client;
+  notlogin = notlogin;
 }
