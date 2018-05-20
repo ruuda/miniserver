@@ -26,6 +26,11 @@ let
       pam = null;
       xz = null;
     };
+    openssh = super.openssh.override {
+      withKerberos = false;
+      libedit = null;
+      openssl = super.libressl_2_6;
+    };
   };
 in
   { pkgs ?
@@ -48,42 +53,42 @@ with pkgs;
 let
   userland = import ./default.nix { inherit pkgs; };
   systemd = pkgs.systemd.overrideDerivation (oldAttrs: rec {
-      removeFlags = [
-        # "-Dkmod-path=${null}/bin/kmod"
-        "-Dlibidn2=true"
-        "-Dlz4=true"
-      ];
-      mesonFlags = (lib.foldr lib.remove oldAttrs.mesonFlags removeFlags) ++ [
-        "-Dbzip2=false"
-        "-Didn=false"
-        "-Dkmod=false"
-        "-Dkmod=false"
-        "-Dlibidn2=false"
-        "-Dlz4=false"
-        "-Dmicrohttpd=false"
-        "-Dpam=false"
-        "-Dxz=false"
-      ];
-      # Adapted from the postinstall in the systemd package.
-      postInstall = ''
-        rm -fr $out/lib/{modules-load.d,binfmt.d,sysctl.d,tmpfiles.d}
-        rm -fr $out/lib/systemd/{system,user}
-        rm -fr $out/etc/systemd/system
-        rm -fr $out/etc/rpm
-        for i in $out/share/dbus-1/system-services/*.service; do
-          substituteInPlace $i --replace /bin/false ${coreutils}/bin/false
-        done
-        find $out -name "*kernel-install*" -exec rm {} \;
+    removeFlags = [
+      "-Dlibidn2=true"
+      "-Dlz4=true"
+    ];
+    mesonFlags = (lib.foldr lib.remove oldAttrs.mesonFlags removeFlags) ++ [
+      "-Dbzip2=false"
+      "-Didn=false"
+      "-Dkmod=false"
+      "-Dlibidn2=false"
+      "-Dlz4=false"
+      "-Dmicrohttpd=false"
+      "-Dpam=false"
+      "-Dxz=false"
+    ];
+    # Adapted from the postinstall in the systemd package.
+    postInstall = ''
+      rm -fr $out/lib/{modules-load.d,binfmt.d,sysctl.d,tmpfiles.d}
+      rm -fr $out/lib/systemd/{system,user}
+      rm -fr $out/etc/systemd/system
+      rm -fr $out/etc/rpm
+      for i in $out/share/dbus-1/system-services/*.service; do
+        substituteInPlace $i --replace /bin/false ${coreutils}/bin/false
+      done
+      find $out -name "*kernel-install*" -exec rm {} \;
 
-        # Keep only libudev and libsystemd in the lib output.
-        mkdir -p $out/lib
-        mv $lib/lib/libnss* $out/lib/
-      '';
-    });
+      # Keep only libudev and libsystemd in the lib output.
+      mkdir -p $out/lib
+      mv $lib/lib/libnss* $out/lib/
+    '';
+  });
+  openssh = pkgs.openssh.overrideDerivation (oldAttrs: rec {
+    configureFlags = lib.remove "--with-libedit=yes" oldAttrs.configureFlags;
+  });
 in {
-  systemd = systemd;
-  utilLinux = pkgs.utillinuxMinimal;
-  # sshd = openssh;
+  # systemd = systemd;
+  sshd = openssh;
   # nginx = userland.nginx;
   # acme-client = userland.acme-client;
 }
