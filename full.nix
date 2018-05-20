@@ -49,6 +49,7 @@ let
       attrSupport = false;
       acl = null;
       attr = null;
+      gmp = null;
     };
   };
 in
@@ -108,6 +109,7 @@ let
   });
 in {
   systemd = systemd;
+  # coreutils = coreutilsMinimal;
   # sshd = openssh;
   # rsync = rsync;
   # nginx = userland.nginx;
