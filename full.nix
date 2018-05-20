@@ -16,7 +16,16 @@ let
       # Use light versions of dependencies.
       kbd = super.kbdlight;
 
+      # We could opt for Busybox rather than coreutils, because it is smaller.
+      # But even with enableMinimal, it provides *many* more binaries, which
+      # increase attack surface. So opt for the traditional coreutils then.
+      # coreutils = super.busybox.override {
+      #   enableMinimal = true;
+      # };
+      coreutils = self.coreutilsMinimal;
+
       # Disable unneeded dependencies.
+      acl = null;
       bzip2 = null;
       kmod = null;
       libgpgerror = null;
@@ -30,6 +39,16 @@ let
       withKerberos = false;
       libedit = null;
       openssl = super.libressl_2_6;
+    };
+    rsync = super.rsync.override {
+      enableACLs = false;
+      acl = null;
+    };
+    coreutilsMinimal = super.coreutils.override {
+      aclSupport = false;
+      attrSupport = false;
+      acl = null;
+      attr = null;
     };
   };
 in
@@ -58,6 +77,7 @@ let
       "-Dlz4=true"
     ];
     mesonFlags = (lib.foldr lib.remove oldAttrs.mesonFlags removeFlags) ++ [
+      "-Dacl=false"
       "-Dbzip2=false"
       "-Didn=false"
       "-Dkmod=false"
@@ -74,7 +94,7 @@ let
       rm -fr $out/etc/systemd/system
       rm -fr $out/etc/rpm
       for i in $out/share/dbus-1/system-services/*.service; do
-        substituteInPlace $i --replace /bin/false ${coreutils}/bin/false
+        substituteInPlace $i --replace /bin/false ${coreutilsMinimal}/bin/false
       done
       find $out -name "*kernel-install*" -exec rm {} \;
 
@@ -87,8 +107,9 @@ let
     configureFlags = lib.remove "--with-libedit=yes" oldAttrs.configureFlags;
   });
 in {
-  # systemd = systemd;
-  sshd = openssh;
+  systemd = systemd;
+  # sshd = openssh;
+  # rsync = rsync;
   # nginx = userland.nginx;
   # acme-client = userland.acme-client;
 }
