@@ -106,6 +106,7 @@ let
     removeFlags = [
       "-Dlibidn2=true"
       "-Dlz4=true"
+      "-Dlocaled=true"
     ];
     mesonFlags = (lib.foldr lib.remove oldAttrs.mesonFlags removeFlags) ++ [
       "-Dacl=false"
@@ -119,6 +120,17 @@ let
       "-Dmicrohttpd=false"
       "-Dpam=false"
       "-Dxz=false"
+
+      # Disable the tools that we don't use anyway. Machinectl controls VMs and
+      # containers, but we just write our own unit files. Rfkill has  something
+      # to do with wireless networks not useful on a server. Localed allows
+      # changing the locale -- we hardcode en_US.UTF8.
+      "-Dmachined=false"
+      "-Drfkill=false"
+      "-Dlocaled=false"
+      "-Dpolkit=false"
+      "-Dbashcompletiondir=no"
+      "-Dzshcompletiondir=no"
     ];
     # Adapted from the postinstall in the systemd package.
     postInstall = ''
@@ -152,6 +164,60 @@ let
       mv $lib/lib/libnss* $out/lib/
     '';
   });
+  imageDir = stdenv.mkDerivation rec {
+    name = "miniserver-${version}-rootfs";
+    version = "0.0.0";
+    buildInputs = [
+      notlogin
+      openssh
+      rsync
+      systemd
+      userland.acme-client
+      userland.nginx
+    ];
+    osRelease = ''
+      NAME="Miniserver"
+      VERSION="${version}"
+      ID=miniserver
+      ID_LIKE=nixos
+      PRETTY_NAME="Miniserver ${version}"
+      HOME_URL="https://github.com/ruuda/miniserver"
+    '';
+    buildCommand = ''
+      # Although we only need /nix/store and /usr/bin, we need to create the
+      # other directories too so the API virtual filesystems can be mounted
+      # there.
+      mkdir -p $out/dev
+      mkdir -p $out/etc
+      mkdir -p $out/nix/store
+      mkdir -p $out/proc
+      mkdir -p $out/run
+      mkdir -p $out/sys
+      mkdir -p $out/tmp
+      mkdir -p $out/usr/bin
+      mkdir -p $out/usr/lib
+      mkdir -p $out/var
+      ln -s /usr/bin $out/bin
+      ln -s ${notlogin}/bin/notlogin $out/usr/bin/notlogin
+      ln -s ${openssh}/bin/sshd $out/usr/bin/sshd
+      ln -s ${rsync}/bin/rsync $out/usr/bin/rsync
+      ln -s ${systemd}/bin/journalctl $out/usr/bin/journalctl
+      ln -s ${systemd}/bin/systemctl $out/usr/bin/systemctl
+      ln -s ${systemd}/lib/systemd/systemd $out/usr/bin/init
+      ln -s ${userland.acme-client}/bin/acme-client $out/usr/bin/acme-client
+      ln -s ${userland.nginx}/bin/nginx $out/usr/bin/nginx
+
+      # For systemd-nspawn to boot the rootfs (with --boot), it needs an
+      # os-release file.
+      echo '${osRelease}' > $out/usr/lib/os-release
+
+      closureInfo=${closureInfo { rootPaths = buildInputs; }}
+      for file in $(cat $closureInfo/store-paths); do
+        echo "copying $file"
+        cp --archive $file $out/nix/store
+      done
+    '';
+  };
 in {
   systemd = systemd;
   openssh = openssh;
@@ -159,4 +225,5 @@ in {
   nginx = userland.nginx;
   acme-client = userland.acme-client;
   notlogin = notlogin;
+  imageDir = imageDir;
 }
