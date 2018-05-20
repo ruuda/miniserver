@@ -26,8 +26,10 @@ let
 
       # Disable unneeded dependencies.
       acl = null;
+      audit = null;
       bzip2 = null;
       kmod = null;
+      libapparmor = null;
       libgpgerror = null;
       libidn2 = null;
       libmicrohttpd = null;
@@ -79,6 +81,8 @@ let
     ];
     mesonFlags = (lib.foldr lib.remove oldAttrs.mesonFlags removeFlags) ++ [
       "-Dacl=false"
+      "-Dapparmor=false"
+      "-Daudit=false"
       "-Dbzip2=false"
       "-Didn=false"
       "-Dkmod=false"
