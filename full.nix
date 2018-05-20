@@ -126,6 +126,10 @@ let
   });
   openssh = pkgs.openssh.overrideDerivation (oldAttrs: rec {
     configureFlags = lib.remove "--with-libedit=yes" oldAttrs.configureFlags;
+    # Remove the upstream postinstall step that copies in ssh-copy-id. This is
+    # a shell script that depends on Bash. It is not useful on the server
+    # anyway, so get rid of it.
+    postInstall = "";
   });
 in {
   systemd = systemd;
