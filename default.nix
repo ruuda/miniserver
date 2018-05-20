@@ -119,8 +119,7 @@ let
       done
     '';
   };
-in
-  stdenv.mkDerivation {
+  miniserver = stdenv.mkDerivation {
     name = "miniserver.img";
 
     nativeBuildInputs = [ squashfsKit ];
@@ -140,4 +139,9 @@ in
           -comp xz           \
           -Xdict-size 100%   \
       '';
-  }
+  };
+in {
+  miniserver = miniserver;
+  nginx = customNginx;
+  acme-client = acme-client;
+}
