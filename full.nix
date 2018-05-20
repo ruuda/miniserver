@@ -8,6 +8,17 @@ let
   overlay = self: super: {
     pam = null;
     utillinuxMinimal = super.utillinuxMinimal.overrideDerivation (oldAttrs: {
+      # Replace the upstream patch phase with our own, because the upstream one
+      # depends on the shadow package, that we like to get rid of. This does
+      # mean that we have no /bin/login any more, but if we have no Bash, that
+      # is not terribly useful anyway. The only way to run something is through
+      # ssh.
+      postPatch = ''
+        substituteInPlace include/pathnames.h \
+          --replace "/bin/login" "${self.coreutils}/bin/false"
+        substituteInPlace sys-utils/eject.c \
+          --replace "/bin/umount" "$out/bin/umount"
+      '';
       postInstall = ''
         rm -fr $out/share/{locale,doc,bash-completion}
       '';
@@ -37,11 +48,24 @@ let
       pam = null;
       xz = null;
     };
-    openssh = super.openssh.override {
-      withKerberos = false;
-      libedit = null;
-      openssl = super.libressl_2_6;
-    };
+    openssh =
+      let
+        pkg = super.openssh.override {
+          withKerberos = false;
+          libedit = null;
+          openssl = super.libressl_2_6;
+        };
+      in
+        pkg.overrideDerivation (oldAttrs: rec {
+          configureFlags = (
+            super.lib.remove "--with-libedit=yes" oldAttrs.configureFlags
+          ) ++ [ "--with-libedit=no" ];
+          # Remove the upstream postinstall step that copies in ssh-copy-id.
+          # This is a shell script that depends on Bash, and we want to remove
+          # all dependencies on Bash. It is not useful on the server anyway,
+          # so get rid of it.
+          postInstall = "";
+        });
     rsync = super.rsync.override {
       enableACLs = false;
       acl = null;
@@ -124,18 +148,10 @@ let
       mv $lib/lib/libnss* $out/lib/
     '';
   });
-  openssh = pkgs.openssh.overrideDerivation (oldAttrs: rec {
-    configureFlags = lib.remove "--with-libedit=yes" oldAttrs.configureFlags;
-    # Remove the upstream postinstall step that copies in ssh-copy-id. This is
-    # a shell script that depends on Bash. It is not useful on the server
-    # anyway, so get rid of it.
-    postInstall = "";
-  });
 in {
   systemd = systemd;
-  # coreutils = coreutilsMinimal;
-  # sshd = openssh;
-  # rsync = rsync;
-  # nginx = userland.nginx;
-  # acme-client = userland.acme-client;
+  openssh = openssh;
+  rsync = rsync;
+  nginx = userland.nginx;
+  acme-client = userland.acme-client;
 }
