@@ -7,3 +7,6 @@
 
 channel='nixos-18.03'
 curl --silent "https://api.github.com/repos/NixOS/nixpkgs-channels/git/refs/heads/$channel" | jq .object.sha > nixpkgs-pinned.nix
+
+git add nixpkgs-pinned.nix
+git commit -m "Upgrade to latest commit in $channel channel"
