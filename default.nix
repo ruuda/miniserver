@@ -28,17 +28,6 @@ let
     libressl = libressl_2_6;
   };
 
-  # Use the squashfskit fork, it produces reproducible images, unlike the
-  # squashfs-tools shipped with NixOS.
-  squashfsKit = squashfsTools.overrideDerivation (oldAttrs: {
-    src = fetchFromGitHub {
-      owner = "squashfskit";
-      repo = "squashfskit";
-      sha256 = "1qampwl0ywiy9g2abv4jxnq33kddzdsq742ng5apkmn3gn12njqd";
-      rev = "3f97efa7d88b2b3deb6d37ac7a5ddfc517e9ce98";
-    };
-  });
-
   lightNginx = nginx.override {
     # Remove dependency on libgd; It brings in a lot of transitive dependencies
     # that we don't need (fontconfig, image codecs, etc.). Also disable other
@@ -123,7 +112,7 @@ in
   stdenv.mkDerivation {
     name = "miniserver.img";
 
-    nativeBuildInputs = [ squashfsKit ];
+    nativeBuildInputs = [ squashfsTools ];
     buildInputs = [ imageDir ];
 
     buildCommand =
