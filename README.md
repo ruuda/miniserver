@@ -29,7 +29,7 @@ package manager:
 The build involves the following:
 
  * Take the package definitions for `nginx` and `acme-client` from a pinned
-   stable version of [Nixpkgs][nixpkgs].
+   version of [Nixpkgs][nixpkgs].
  * Override `nginx` package to disable unused features (to reduce the number
    of dependencies, and thereby attack surface and image size). Add the
    [`ngx_brotli`][ngx-brotli] module for `brotli_static` support.
