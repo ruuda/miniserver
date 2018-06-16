@@ -5,7 +5,7 @@
 # The pin file contains the hash between quotes, but fortunately jq prints
 # it like that.
 
-channel='nixos-18.03'
+channel='nixos-unstable'
 curl --silent "https://api.github.com/repos/NixOS/nixpkgs-channels/git/refs/heads/$channel" | jq .object.sha > nixpkgs-pinned.nix
 
 git add nixpkgs-pinned.nix
