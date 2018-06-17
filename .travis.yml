@@ -9,3 +9,12 @@ after_success:
 
 notifications:
   email: false
+
+deploy:
+  provider: gcs
+  access_key_id: GOOGGIMUMAJJ7XQEWNKDQQQW
+  secret_access_key:
+    secure: LPSGB5Xu4jPbn+KtQYvF6pfwPqvz9w1VsMIs/aOQW9238VauXn8/ZBbCpAc8WSyGW8Ot+MiFKHLsva0Dfo9Oobd6m58ACt/KlTnro3SNPYFccF3Qb2tMHSa1Vi0wfaTJTtCm6pZSB/79VgoDA9BQUvd4ZUUKV6PDMH2j+coNH6mu6oY3Jw042pdg/biGO4Z0x8OjjKmEXQUd7cPaTvWv6fliR9xKf+Coa4HYvjYt9pmkSqsBYgCZ/mcio0ZpgXW137MRm7k+7a3XkvDduOixlYLHoJZCZIVUEZRmWr4zwI1ucuafJRz2hXywpoeenpWP7LvBsPFBuJhVJe5vO7PpnXrQMz9q5m1Gjoge9YD1OS+oyzNncVXO1dOQHzOKqARPgJbFEP99P6Y+aQgKxnorwNhglUgkakpILnhtqMjGSRmj5sBpmESwYLQh5QeCqOmhJaRqgmqN77M1xJ/GErGoRGN5OJ/MPJEO3eZOXgM0X/t+FAPMnTnYMszIjb0Gg5Sg4y9gpGotvDiPdWlbeSg823bXdPw2X4penCm+gqINThIbydOMYVYYpkviPPBwkZTjI1kL8z0J2BK3ENwmMsutjnA/lXvYvKkcisyvkvEPhxSfGXu3Yhlbavf/C0plJbGtq3uGu1UtjqypGz1WQiyIQE/5nZAaoqVUyGOdLC/oH2g=
+  bucket: miniserver
+  on:
+    repo: ruuda/miniserver
