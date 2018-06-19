@@ -54,6 +54,11 @@ let
       "--with-threads"
       "--with-pcre-jit"
       "--add-module=ngx_brotli"
+      # If the group is not set explicitly, the configure script will first look
+      # for a "nobody" group in /etc/group and then fall back to "nogroup". To
+      # keep the build reproducible and independent of /etc/group on the host
+      # system, set the group explicitly.
+      "--group=nogroup"
     ];
 
     # The nginx binary embeds its configure command line. If we would pass the
