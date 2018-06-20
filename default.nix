@@ -86,7 +86,9 @@ let
     buildCommand = ''
       # Although we only need /nix/store and /usr/bin, we need to create the
       # other directories too so systemd can mount the API virtual filesystems
-      # there, when the image is used.
+      # there, when the image is used. For /var, for systemd-nspawn only /var is
+      # sufficient, but in a unit with PrivateTmp=true, we also need /var/tmp,
+      # because systemd mounts a tmpfs there.
       mkdir -p $out/dev
       mkdir -p $out/etc
       mkdir -p $out/nix/store
@@ -95,7 +97,7 @@ let
       mkdir -p $out/sys
       mkdir -p $out/tmp
       mkdir -p $out/usr/bin
-      mkdir -p $out/var
+      mkdir -p $out/var/tmp
       ln -s /usr/bin $out/bin
       ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
       ln -s ${acme-client}/bin/acme-client $out/usr/bin/acme-client

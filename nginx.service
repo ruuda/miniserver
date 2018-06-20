@@ -14,8 +14,7 @@ Type=oneshot
 ExecStart=/usr/bin/nginx -V
 ExecReload=/usr/bin/nginx -s reload
 ExecStop=/bin/kill -s QUIT $MAINPID
-# TODO: Ensure /tmp and /var/tmp exist so private tmp can be mounted.
-#PrivateTmp=true
+PrivateTmp=true
 
 RootImage=/home/ruud/repos/miniserver/miniserver.img
 #MountAPIVFS=true
