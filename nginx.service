@@ -1,0 +1,40 @@
+# Miniserver NGINX unit, based on upstream at
+# https://www.nginx.com/resources/wiki/start/topics/examples/systemd/.
+
+[Unit]
+Description=The NGINX HTTP and reverse proxy server
+After=network.target nss-lookup.target
+
+[Service]
+#Type=forking
+Type=oneshot
+#PIDFile=/run/nginx.pid
+#ExecStartPre=/usr/bin/nginx -t
+#ExecStart=/usr/bin/nginx
+ExecStart=/usr/bin/nginx -V
+ExecReload=/usr/bin/nginx -s reload
+ExecStop=/bin/kill -s QUIT $MAINPID
+# TODO: Ensure /tmp and /var/tmp exist so private tmp can be mounted.
+#PrivateTmp=true
+
+RootImage=/home/ruud/repos/miniserver/miniserver.img
+#MountAPIVFS=true
+#PrivateUsers=true
+#PrivateDevices=true
+MemoryDenyWriteExecute=true
+# BindReadOnlyPaths=/etc
+# DynamicUser=true
+
+# The squashfs file system is read-only. Mount a tmpfs for Nginx to write the
+# pidfile to.
+#TemporaryFileSystem=/run
+
+#ProtectKernelTunables=true
+#ProtectControlGroups=true
+
+# Note: Setting ProtectSystem= has no advantage, as the squashfs filesystem is
+# already read-only. Similarly, ProtectHome= is not useful because the paths it
+# protect do not exist in our filesystem.
+
+[Install]
+WantedBy=multi-user.target
