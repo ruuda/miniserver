@@ -9,7 +9,7 @@ After=network.target nss-lookup.target
 Type=forking
 # TODO: PIDFile path refers to path on the host; we must use RuntimeDirectory=
 # for this then.
-PIDFile=/run/nginx.pid
+PIDFile=/run/nginx/systemdworkaround/nginx.pid
 ExecStartPre=/usr/bin/nginx -t
 ExecStart=/usr/bin/nginx
 ExecReload=/usr/bin/nginx -s reload
@@ -29,10 +29,6 @@ MemoryDenyWriteExecute=true
 # what goes wrong.
 # DynamicUser=true
 
-# The squashfs file system is read-only. Mount a tmpfs for Nginx to write the
-# pidfile to.
-TemporaryFileSystem=/run
-
 #ProtectKernelTunables=true
 #ProtectControlGroups=true
 
@@ -43,6 +39,7 @@ TemporaryFileSystem=/run
 # TODO: Systemd only makes the directories below /var/log/nginx owned by the
 # user specified in the User=, but not the directory itself. That prevents nginx
 # from writing there. Find a cleaner solution than this.
+RuntimeDirectory=nginx/systemdworkaround
 LogsDirectory=nginx/systemdworkaround
 
 # Allow binding to priviliged ports (e.g. 80 and 443) as non-root user.

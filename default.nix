@@ -61,6 +61,7 @@ let
   '';
 
   defaultNginxConfig = writeText "nginx.conf" ''
+    pid /run/nginx/systemdworkaround/nginx.pid;
     error_log /var/log/nginx/systemdworkaround/error.log;
 
     worker_processes auto;
@@ -108,7 +109,7 @@ let
       # the image, so that is not really an option). We also provide a
       # customized default config file that does not write logs to these paths.
       "--conf-path=${defaultNginxConfig}"
-      "--pid-path=/run/nginx.pid"
+      #"--pid-path=/run/nginx/systemdworkaround/nginx.pid"
       "--error-log-path=stderr" #/var/log/nginx/error.log"
       #"--http-log-path=/var/log/nginx/access.log"
 
