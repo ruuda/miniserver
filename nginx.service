@@ -21,7 +21,11 @@ RootImage=/home/ruud/repos/miniserver/miniserver.img
 # PrivateDevices=true
 MemoryDenyWriteExecute=true
 # BindReadOnlyPaths=/etc
-DynamicUser=true
+
+# TODO: Setting DynamicUser= appears to break LogsDirectory= with a "no such
+# file or directory" error from systemd, though I think it should work. Diagnose
+# what goes wrong.
+# DynamicUser=true
 
 # The squashfs file system is read-only. Mount a tmpfs for Nginx to write the
 # pidfile to.
@@ -33,6 +37,11 @@ TemporaryFileSystem=/run
 # Note: Setting ProtectSystem= has no advantage, as the squashfs filesystem is
 # already read-only. Similarly, ProtectHome= is not useful because the paths it
 # protect do not exist in our filesystem.
+
+# TODO: Systemd only makes the directories below /var/log/nginx owned by the
+# user specified in the User=, but not the directory itself. That prevents nginx
+# from writing there. Find a cleaner solution than this.
+LogsDirectory=nginx/systemdworkaround
 
 [Install]
 WantedBy=multi-user.target

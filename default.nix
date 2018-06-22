@@ -61,7 +61,7 @@ let
   '';
 
   defaultNginxConfig = writeText "nginx.conf" ''
-    error_log /var/log/nginx/error.log;
+    error_log /var/log/nginx/systemdworkaround/error.log;
 
     worker_processes auto;
 
@@ -70,7 +70,7 @@ let
     }
 
     http {
-      access_log /var/log/nginx/access.log combined;
+      access_log /var/log/nginx/systemdworkaround/access.log combined;
 
       server {
         listen 80;
@@ -162,6 +162,7 @@ let
       mkdir -p $out/sys
       mkdir -p $out/tmp
       mkdir -p $out/usr/bin
+      mkdir -p $out/var/log/nginx/systemdworkaround
       mkdir -p $out/var/tmp
       ln -s /usr/bin $out/bin
       ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
