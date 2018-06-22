@@ -43,6 +43,49 @@ let
     fetchSubmodules = true;
   };
 
+  defaultPage = writeText "about.html" ''
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <title>Welcome to Miniserver!</title>
+    <style>body { width: 35em; margin: 0 auto; font-family: sans-serif; }</style>
+    </head>
+    <body>
+    <h1>Welcome to Miniserver!</h1>
+    <p>If you see this page, the nginx web server is successfully installed and
+    working. Further configuration is required.</p>
+    <p>For online documentation and support please refer to
+    <a href="http://nginx.org/">nginx.org</a>.<br/>
+    </body>
+    </html>
+  '';
+
+  defaultNginxConfig = writeText "nginx.conf" ''
+    error_log /var/log/nginx/error.log;
+
+    worker_processes auto;
+
+    events {
+      worker_connections 1024;
+    }
+
+    http {
+      access_log /var/log/nginx/access.log combined;
+
+      server {
+        listen 80;
+        server_name localhost;
+        location / {
+          root html;
+          index index.html;
+        }
+      }
+
+      # TODO: include /etc/nginx/conf.d/*;
+      # TODO: include /etc/nginx/sites-enabled/*;
+    }
+  '';
+
   customNginx = lightNginx.overrideDerivation (oldAttrs: {
     # Override the light nginx package to cut down on the dependencies further.
     # I also want to get rid of geoip and all of the xml stuff, but the package
@@ -59,6 +102,28 @@ let
       # keep the build reproducible and independent of /etc/group on the host
       # system, set the group explicitly.
       "--group=nogroup"
+      # Configure default paths. They default to /nix/store/...-nginx/logs/*,
+      # but that is inconvenient because we would need to update the systemd
+      # unit every time (or generate it with Nix, but it is delivered outside of
+      # the image, so that is not really an option). We also provide a
+      # customized default config file that does not write logs to these paths.
+      "--conf-path=${defaultNginxConfig}"
+      "--pid-path=/run/nginx.pid"
+      "--error-log-path=stderr" #/var/log/nginx/error.log"
+      #"--http-log-path=/var/log/nginx/access.log"
+
+      # Nginx writes some times writes things to temporary files, by default in
+      # /nix/store/...nginx/client_body_temp, but that fails on the immutable
+      # file system, so point it to /tmp (which is a ramdisk), and private to
+      # Nginx anyway because we use PrivateTmp= in the systemd unit. Note that
+      # the subdirectories do not actually exist.
+      "--http-client-body-temp-path=/tmp/client_body_temp"
+      "--http-fastcgi-temp-path=/tmp/fastcgi_temp"
+      "--http-proxy-temp-path=/tmp/proxy_temp"
+      "--http-scgi-temp-path=/tmp/scgi_temp"
+      "--http-uwsgi-temp-path=/tmp/uwsgi_temp"
+      # TODO: These can also be disabled with --without-http_fastcgi_module etc.
+      # Probably better to disable them, I want to serve a static site.
     ];
 
     # The nginx binary embeds its configure command line. If we would pass the
