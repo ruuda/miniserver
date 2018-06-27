@@ -45,5 +45,9 @@ LogsDirectory=nginx/systemdworkaround
 # Allow binding to priviliged ports (e.g. 80 and 443) as non-root user.
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 
+# TODO: Should mount /var/www from the host,
+# but this is just to test.
+BindReadOnlyPaths=/home/ruud/repos/blog/out:/var/www
+
 [Install]
 WantedBy=multi-user.target

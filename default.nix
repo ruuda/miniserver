@@ -165,6 +165,7 @@ let
       mkdir -p $out/usr/bin
       mkdir -p $out/var/log/nginx/systemdworkaround
       mkdir -p $out/var/tmp
+      mkdir -p $out/var/www
       ln -s /usr/bin $out/bin
       ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
       ln -s ${acme-client}/bin/acme-client $out/usr/bin/acme-client
