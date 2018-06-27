@@ -159,7 +159,7 @@ let
       mkdir -p $out/etc
       mkdir -p $out/nix/store
       mkdir -p $out/proc
-      mkdir -p $out/run
+      mkdir -p $out/run/nginx/systemdworkaround
       mkdir -p $out/sys
       mkdir -p $out/tmp
       mkdir -p $out/usr/bin
