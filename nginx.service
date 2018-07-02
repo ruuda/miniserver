@@ -6,16 +6,16 @@ Description=The NGINX HTTP and reverse proxy server
 After=network.target nss-lookup.target
 
 [Service]
-Type=forking
-# TODO: PIDFile path refers to path on the host; we must use RuntimeDirectory=
-# for this then.
-PIDFile=/run/nginx/systemdworkaround/nginx.pid
 ExecStartPre=/usr/bin/nginx -t
 ExecStart=/usr/bin/nginx
-ExecReload=/usr/bin/nginx -s reload
-ExecStop=/bin/kill -s QUIT $MAINPID
 PrivateTmp=true
 User=nobody
+
+# When stopping the unit, send SIGQUIT to the main process (which causes Nginx
+# to shut down gracefully), and don't send anything to other processes. If the
+# process has not shut down after a timeout, send SIGKILL to all processes.
+KillMode=mixed
+KillSignal=SIGQUIT
 
 RootImage=/home/ruud/repos/miniserver/miniserver.img
 MountAPIVFS=true

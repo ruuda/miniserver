@@ -55,6 +55,12 @@ let
   '';
 
   defaultNginxConfig = writeText "nginx.conf" ''
+    # Don't daemonize. This makes it easier to run under systemd, especially
+    # with RootImage=, as there are no pidfiles to juggle around, and no
+    # directories that we need to create or mount for that. It also simplifies
+    # stopping, because systemd sends the right signal to the process directly.
+    # See also https://nginx.org/en/docs/faq/daemon_master_process_off.html.
+    daemon off;
     pid /run/nginx/systemdworkaround/nginx.pid;
     error_log /var/log/nginx/systemdworkaround/error.log;
 
