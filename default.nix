@@ -61,7 +61,6 @@ let
     # stopping, because systemd sends the right signal to the process directly.
     # See also https://nginx.org/en/docs/faq/daemon_master_process_off.html.
     daemon off;
-    pid /run/nginx/systemdworkaround/nginx.pid;
     error_log /var/log/nginx/systemdworkaround/error.log;
 
     worker_processes auto;
@@ -109,7 +108,8 @@ let
       # the image, so that is not really an option). We also provide a
       # customized default config file that does not write logs to these paths.
       "--conf-path=${defaultNginxConfig}"
-      #"--pid-path=/run/nginx/systemdworkaround/nginx.pid"
+      # We don't run in daemon mode; there is no need to write a pidfile.
+      "--pid-path=/dev/null"
       "--error-log-path=stderr" #/var/log/nginx/error.log"
       #"--http-log-path=/var/log/nginx/access.log"
 
@@ -159,7 +159,6 @@ let
       mkdir -p $out/etc
       mkdir -p $out/nix/store
       mkdir -p $out/proc
-      mkdir -p $out/run/nginx/systemdworkaround
       mkdir -p $out/sys
       mkdir -p $out/tmp
       mkdir -p $out/usr/bin

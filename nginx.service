@@ -39,7 +39,6 @@ MemoryDenyWriteExecute=true
 # TODO: Systemd only makes the directories below /var/log/nginx owned by the
 # user specified in the User=, but not the directory itself. That prevents nginx
 # from writing there. Find a cleaner solution than this.
-RuntimeDirectory=nginx/systemdworkaround
 LogsDirectory=nginx/systemdworkaround
 
 # Allow binding to priviliged ports (e.g. 80 and 443) as non-root user.
