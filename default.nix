@@ -61,7 +61,7 @@ let
     # stopping, because systemd sends the right signal to the process directly.
     # See also https://nginx.org/en/docs/faq/daemon_master_process_off.html.
     daemon off;
-    error_log /var/log/nginx/systemdworkaround/error.log;
+    error_log /var/log/nginx/error.log;
 
     worker_processes auto;
 
@@ -70,7 +70,7 @@ let
     }
 
     http {
-      access_log /var/log/nginx/systemdworkaround/access.log combined;
+      access_log /var/log/nginx/access.log combined;
 
       server {
         listen 80;
@@ -156,13 +156,13 @@ let
       # sufficient, but in a unit with PrivateTmp=true, we also need /var/tmp,
       # because systemd mounts a tmpfs there.
       mkdir -p $out/dev
-      mkdir -p $out/etc
+      mkdir -p $out/etc/nginx
       mkdir -p $out/nix/store
       mkdir -p $out/proc
       mkdir -p $out/sys
       mkdir -p $out/tmp
       mkdir -p $out/usr/bin
-      mkdir -p $out/var/log/nginx/systemdworkaround
+      mkdir -p $out/var/log/nginx
       mkdir -p $out/var/tmp
       mkdir -p $out/var/www
       ln -s /usr/bin $out/bin
