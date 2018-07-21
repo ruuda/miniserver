@@ -4,6 +4,7 @@
 # Build outputs.
 /result
 /miniserver.img
+/out/
 
 # Editor files.
 *.swp
