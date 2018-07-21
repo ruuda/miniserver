@@ -19,16 +19,22 @@ KillSignal=SIGQUIT
 
 RootImage=/home/ruud/repos/miniserver/miniserver.img
 MountAPIVFS=true
-
-# PrivateUsers=true
+# TODO: Why does PrivateDevices cause a file not found error? It's a systemd
+# error, so probably some path does not exist inside the container?
 # PrivateDevices=true
+
+# TODO: Enabling PrivateUsers causes socket bind to fail because
+# CAP_NET_BIND_SERVICE is not propagated. Can something be done about it?
+# PrivateUsers=true
 MemoryDenyWriteExecute=true
 DynamicUser=true
 
-# Ensure that the process can never gain new priviliges through execve.
+# Ensure that the process can never gain new priviliges through execve, and that
+# they cannot change kernel tunables.
 NoNewPrivileges=true
-#ProtectKernelTunables=true
-#ProtectControlGroups=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
 
 # Allow binding to priviliged ports (e.g. 80 and 443) as non-root user.
 AmbientCapabilities=CAP_NET_BIND_SERVICE
