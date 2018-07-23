@@ -62,6 +62,22 @@ I needed to mount my host's `/etc/resolv.conf` inside the container to get
 networking to work. If you use `systemd-networkd`, networking might work out
 of the box.
 
+## Deploying
+
+Steps for manual deployment to a CoreOS server. It is recommended to instead
+encode these steps in your Ignition config.
+
+ * Copy `miniserver.img` to `/var/lib/images/miniserver/latest`. This path will
+   allow for automatic updates using [Tako][tako] later.
+ * Copy `nginx.service` to `/etc/systemd/system/nginx.service`.
+ * Create `/var/log/nginx` and `chown` it to `nobody:nobody`. This directory
+   will be mounted read-write inside the unit's chroot.
+ * Create `/var/www` and put your static site in there. This directory will be
+   mounted read-only inside the unit's chroot.
+ * Create `/etc/nginx/sites-enabled/` and put at least one Nginx configuration
+   file in there. Files in that directory will be loaded by the master config.
+ * `systemctl start nginx`.
+
 ## License
 
 The code in this repository is licensed under the
@@ -69,4 +85,5 @@ The code in this repository is licensed under the
 
 [ci-img]: https://travis-ci.org/ruuda/miniserver.svg?branch=master
 [ci]:     https://travis-ci.org/ruuda/miniserver
+[tako]:   https://github.com/ruuda/tako
 [gplv3]:  https://www.gnu.org/licenses/gpl-3.0.html
