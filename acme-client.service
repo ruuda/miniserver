@@ -1,0 +1,44 @@
+# Miniserver acme-client unit.
+
+[Unit]
+Description=Automatic Certificate Management Environment (ACME) client (%I)
+Requires=network.target nss-lookup.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/acme-client -help %i
+PrivateTmp=true
+User=nobody
+
+RootImage=/home/ruud/repos/miniserver/miniserver.img
+# MountAPIVFS=true
+# PrivateDevices=true
+
+# We take acme-client with its default configuration, which has seccomp support
+# disabled. [1] Fortunately we can bring back a lot, albeit not at the same
+# granularity, using systemd's sandboxing features.
+#
+# [1]: https://github.com/kristapsdz/acme-client-portable/blob/
+#      e82c130dd942a74c50c1631042c1bc60fafe8bad/Linux-seccomp.md
+
+MemoryDenyWriteExecute=true
+DynamicUser=true
+
+# Ensure that the process can never gain new priviliges through execve, and that
+# they cannot change kernel tunables.
+NoNewPrivileges=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+
+# TODO: Will need chroot capability?
+# AmbientCapabilities=
+
+# Note: Setting ProtectSystem= has no advantage, as the squashfs filesystem is
+# already read-only. Similarly, ProtectHome= is not useful because the paths it
+# protect do not exist in our filesystem.
+
+# Bind-mount /var/www/well-known inside the chroot. This is where the response
+# to the challenge will be written, it should be served by Nginx.
+# BindPaths=/var/www/well-known
+# BindPaths=/etc/certificates/%I
