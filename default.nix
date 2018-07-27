@@ -123,8 +123,6 @@ let
       "--http-proxy-temp-path=/tmp/proxy_temp"
       "--http-scgi-temp-path=/tmp/scgi_temp"
       "--http-uwsgi-temp-path=/tmp/uwsgi_temp"
-      # TODO: These can also be disabled with --without-http_fastcgi_module etc.
-      # Probably better to disable them, I want to serve a static site.
     ];
 
     # The nginx binary embeds its configure command line. If we would pass the
