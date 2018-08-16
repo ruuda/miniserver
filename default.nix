@@ -15,7 +15,13 @@
 
 with pkgs;
 let
-  lightNginx = nginx.override {
+  # NixOS ships multiple versions of LibreSSL at the same time, and the default
+  # one is not always the latest one. So opt for the latest one explicitly.
+  acme-client = pkgs.acme-client.override {
+    libressl = libressl_2_8;
+  };
+
+  lightNginx = nginxMainline.override {
     # Remove dependency on libgd; It brings in a lot of transitive dependencies
     # that we don't need (fontconfig, image codecs, etc.). Also disable other
     # unnecessary dependencies.
@@ -26,7 +32,8 @@ let
     # Build Nginx against LibreSSL, rather than OpenSSL. This reduces the size
     # of the image, as we don't have to include both OpenSSL and LibreSSL. But
     # more importantly, I trust LibreSSL more than I trust OpenSSL.
-    openssl = libressl;
+    # Take the latest LibreSSL, the default is still 2.7 at the time of writing.
+    openssl = libressl_2_8;
   };
 
   ngxBrotli = fetchFromGitHub {
@@ -134,6 +141,8 @@ let
     preConfigure = oldAttrs.preConfigure + ''
       ln -s ${ngxBrotli} ngx_brotli
     '';
+
+    patches = [ ./nginx-libre.patch ];
   });
 
   # Put together the filesystem by copying from and symlinking to the Nix store.

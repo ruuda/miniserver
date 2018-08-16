@@ -1,0 +1,22 @@
+diff -r 70c6b08973a0 src/event/ngx_event_openssl.c
+--- a/src/event/ngx_event_openssl.c     Fri Aug 10 21:54:46 2018 +0300
++++ b/src/event/ngx_event_openssl.c     Thu Aug 16 22:29:15 2018 +0200
+@@ -40,7 +40,7 @@
+ static int ngx_ssl_new_session(ngx_ssl_conn_t *ssl_conn,
+     ngx_ssl_session_t *sess);
+ static ngx_ssl_session_t *ngx_ssl_get_cached_session(ngx_ssl_conn_t *ssl_conn,
+-#if OPENSSL_VERSION_NUMBER >= 0x10100003L
++#if OPENSSL_VERSION_NUMBER >= 0x10100003L || defined(LIBRESSL_VERSION_NUMBER)
+     const
+ #endif
+     u_char *id, int len, int *copy);
+@@ -2693,7 +2693,7 @@
+ 
+ static ngx_ssl_session_t *
+ ngx_ssl_get_cached_session(ngx_ssl_conn_t *ssl_conn,
+-#if OPENSSL_VERSION_NUMBER >= 0x10100003L
++#if OPENSSL_VERSION_NUMBER >= 0x10100003L || defined(LIBRESSL_VERSION_NUMBER)
+     const
+ #endif
+     u_char *id, int len, int *copy)
+
