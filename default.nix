@@ -161,11 +161,13 @@ let
       # other directories too so systemd can mount the API virtual filesystems
       # there, when the image is used. For /var, for systemd-nspawn only /var is
       # sufficient, but in a unit with PrivateTmp=true, we also need /var/tmp,
-      # because systemd mounts a tmpfs there.
+      # because systemd mounts a tmpfs there. /run is not needed by the systemd
+      # unit, but it is required by systemd-nspawn, so we add it too.
       mkdir -p $out/dev
       mkdir -p $out/etc/nginx
       mkdir -p $out/nix/store
       mkdir -p $out/proc
+      mkdir -p $out/run
       mkdir -p $out/sys
       mkdir -p $out/tmp
       mkdir -p $out/usr/bin
