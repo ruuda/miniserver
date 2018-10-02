@@ -196,11 +196,20 @@ in
         # Generate the squashfs image. Pass the -no-fragments option to make
         # the build reproducible; apparently splitting fragments is a
         # nondeterministic multithreaded process. Also set processors to 1 for
-        # the same reason.
+        # the same reason. Do not compress the inode table (-noI), nor the files
+        # themselves (-noD), compression defeats sharing through chunking.
+        # Disabling compression makes parts more likely to be shared across
+        # updates. The xz compressed image is about 1/3 the size of the
+        # uncompressed image, but we can do chunking first and compression later
+        # to get bigger savings. Don't pad to 4K either, the extra bytes are not
+        # helpful.
         mksquashfs ${imageDir} $out \
           -no-fragments      \
           -processors 1      \
           -all-root          \
+          -nopad             \
+          -noI               \
+          -noD               \
           -b 1048576         \
           -comp xz           \
           -Xdict-size 100%   \
