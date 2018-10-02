@@ -211,7 +211,5 @@ in
           -noI               \
           -noD               \
           -b 1048576         \
-          -comp xz           \
-          -Xdict-size 100%   \
       '';
   }
