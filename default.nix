@@ -143,8 +143,6 @@ let
     preConfigure = oldAttrs.preConfigure + ''
       ln -s ${ngxBrotli} ngx_brotli
     '';
-
-    patches = [ ./nginx-libre.patch ];
   });
 
   # Put together the filesystem by copying from and symlinking to the Nix store.
