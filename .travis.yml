@@ -4,7 +4,6 @@ dist: xenial
 
 script:
   - nix build --out-link miniserver.img
-  - systemd-nspawn --image miniserver.img --ephemeral -- /usr/bin/nginx -V
 
 after_success:
   # List output to confirm reproducibilty.
