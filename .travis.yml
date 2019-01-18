@@ -1,12 +1,14 @@
 language: nix
 
+dist: xenial
+
 script:
-  # - ./build.sh
-  - nix build
+  - nix build --out-link miniserver.img
+  - systemd-nspawn --image miniserver.img --ephemeral -- /usr/bin/nginx -V
 
 after_success:
   # List output to confirm reproducibilty.
-  - sha256sum $(nix path-info)
+  - sha256sum miniserver.img
 
 notifications:
   email: false
