@@ -145,71 +145,23 @@ let
     '';
   });
 
-  # Put together the filesystem by copying from and symlinking to the Nix store.
-  # We need to do this, because unfortunately, "mksquashfs /foo/bar" will create
-  # a file system with bar in the root. So we cannot pass absolute paths to the
-  # store. To work around this, copy all of them, so we can run mksquashfs on
-  # the properly prepared directory. Then for symlinks, they are copied
-  # verbatim, with the path inside the $out directory. So these we symlink
-  # directly to the store, not to the copies in $out. So in the resulting image,
-  # those links will point to the right places.
-  imageDir = stdenv.mkDerivation {
-    name = "miniserver-filesystem";
-    buildInputs = [ customNginx acme-client ];
-    buildCommand = ''
-      # Although we only need /nix/store and /usr/bin, we need to create the
-      # other directories too so systemd can mount the API virtual filesystems
-      # there, when the image is used. For /var, for systemd-nspawn only /var is
-      # sufficient, but in a unit with PrivateTmp=true, we also need /var/tmp,
-      # because systemd mounts a tmpfs there. /run is not needed by the systemd
-      # unit, but it is required by systemd-nspawn, so we add it too.
-      mkdir -p $out/dev
-      mkdir -p $out/etc/nginx
-      mkdir -p $out/nix/store
-      mkdir -p $out/proc
-      mkdir -p $out/run
-      mkdir -p $out/sys
-      mkdir -p $out/tmp
-      mkdir -p $out/usr/bin
-      mkdir -p $out/var/log/nginx
-      mkdir -p $out/var/tmp
-      mkdir -p $out/var/www
-      ln -s /usr/bin $out/bin
-      ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
-      ln -s ${acme-client}/bin/acme-client $out/usr/bin/acme-client
-      closureInfo=${closureInfo { rootPaths = [ customNginx acme-client ]; }}
-      for file in $(cat $closureInfo/store-paths); do
-        echo "copying $file"
-        cp --archive $file $out/nix/store
-      done
-    '';
+  dockerImage = pkgs.dockerTools.buildImage {
+    name = "miniserver";
+    tag = "latest";
+    contents = customNginx;
+    /*config.ExposedPorts = {
+      "80/tcp" = {};
+      "443/tcp" = {};
+    };*/
   };
 in
   stdenv.mkDerivation {
-    name = "miniserver.img";
-
-    nativeBuildInputs = [ squashfsTools ];
-    buildInputs = [ imageDir ];
-
+    name = "miniserver.oci";
+    nativeBuildInputs = [ skopeo ];
     buildCommand =
       ''
-        # Generate the squashfs image. Pass the -no-fragments option to make
-        # the build reproducible; apparently splitting fragments is a
-        # nondeterministic multithreaded process. Also set processors to 1 for
-        # the same reason. Do not compress the inode table (-noI), nor the files
-        # themselves (-noD), compression defeats sharing through chunking.
-        # Disabling compression makes parts more likely to be shared across
-        # updates. The xz compressed image is about 1/3 the size of the
-        # uncompressed image, but we can do chunking first and compression later
-        # to get bigger savings. Don't pad to 4K either, the extra bytes are not
-        # helpful.
-        mksquashfs ${imageDir} $out \
-          -no-fragments      \
-          -processors 1      \
-          -all-root          \
-          -nopad             \
-          -noI               \
-          -noD               \
-          -b 1048576         \
+        # Use Skopeo to convert the Docker image that Nix generates into an OCI
+        # image that rkt can run natively.
+        skopeo copy --format=oci "tarball:${dockerImage}" "oci-archive:$out"
       '';
   }
