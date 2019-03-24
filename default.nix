@@ -149,14 +149,15 @@ let
     name = "miniserver";
     tag = "latest";
     contents = customNginx;
-    /*config.ExposedPorts = {
+    config.ExposedPorts = {
       "80/tcp" = {};
       "443/tcp" = {};
-    };*/
+    };
+    config.EntryPoint = "${customNginx}/bin/nginx";
   };
 in
   stdenv.mkDerivation {
-    name = "miniserver.oci";
+    name = "miniserver.aci";
     nativeBuildInputs = [ skopeo ];
     buildCommand =
       ''
