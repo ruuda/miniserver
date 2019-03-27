@@ -201,13 +201,14 @@ in
         # Disabling compression makes parts more likely to be shared across
         # updates. The xz compressed image is about 1/3 the size of the
         # uncompressed image, but we can do chunking first and compression later
-        # to get bigger savings. Don't pad to 4K either, the extra bytes are not
-        # helpful.
+        # to get bigger savings. Do use padding, omit the -nopad option. Without
+        # it, systemd-nspawn on CoreOS would not mount the image, failing with
+        # "short read while reading cgroup mode", which is probably a misleading
+        # error message.
         mksquashfs ${imageDir} $out \
           -no-fragments      \
           -processors 1      \
           -all-root          \
-          -nopad             \
           -noI               \
           -noD               \
           -b 1048576         \
