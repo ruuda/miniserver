@@ -171,6 +171,7 @@ let
       mkdir -p $out/sys
       mkdir -p $out/tmp
       mkdir -p $out/usr/bin
+      mkdir -p $out/var/log/journal
       mkdir -p $out/var/log/nginx
       mkdir -p $out/var/tmp
       mkdir -p $out/var/www
