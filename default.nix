@@ -17,7 +17,12 @@ with pkgs;
 let
   # NixOS ships multiple versions of LibreSSL at the same time, and the default
   # one is not always the latest one. So opt for the latest one explicitly.
-  libressl = libressl_3_0;
+  libressl = libressl_3_0.overrideDerivation (oldAttrs: {
+    # Explicitly make the stack non-executable. Nginx cannot load libcrypto if
+    # libcrypto requires an executable stack, that operation is not permitted
+    # (which is good, executable stacks are a very bad idea).
+    NIX_LDFLAGS = ["-z" "noexecstack"];
+  });
 
   acme-client = pkgs.acme-client.override {
     libressl = libressl;
