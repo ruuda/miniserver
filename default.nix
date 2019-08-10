@@ -17,8 +17,10 @@ with pkgs;
 let
   # NixOS ships multiple versions of LibreSSL at the same time, and the default
   # one is not always the latest one. So opt for the latest one explicitly.
+  libressl = libressl_3_0;
+
   acme-client = pkgs.acme-client.override {
-    libressl = libressl_2_9;
+    libressl = libressl;
   };
 
   lightNginx = nginxMainline.override {
@@ -31,11 +33,8 @@ let
 
     # Build Nginx against LibreSSL, rather than OpenSSL. This reduces the size
     # of the image, as we don't have to include both OpenSSL and LibreSSL. But
-    # more importantly, I trust LibreSSL more than I trust OpenSSL. Take the
-    # latest LibreSSL (2.9 at the time of writing), the default in NixOS is
-    # often an older version, but the latest one is generally available as
-    # opt-in.
-    openssl = libressl_2_9;
+    # more importantly, I trust LibreSSL more than I trust OpenSSL.
+    openssl = libressl;
   };
 
   ngxBrotli = fetchFromGitHub {
