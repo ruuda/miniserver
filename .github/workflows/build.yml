@@ -11,6 +11,10 @@
           "uses": "actions/checkout@v1"
         },
         {
+          "name": "Install build dependencies",
+          "run": "./install-nix.sh"
+        },
+        {
           "name": "Build",
           "run": "nix build --out-link miniserver.img"
         },
