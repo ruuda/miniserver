@@ -42,3 +42,7 @@ tar -xjf "downloads/$nixv.tar.bz2" -C /tmp/nix-unpack
 rm -fr /tmp/nix-unpack
 
 source "$HOME/.nix-profile/etc/profile.d/nix.sh"
+
+# Nix does not remain on the path after sourcing that file, once we leave this
+# script. Place a symlink in ~/.local bin to ensure we can access it later.
+ln -s $(which nix) "$HOME/.local/bin/nix"
