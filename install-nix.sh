@@ -28,9 +28,9 @@ gpg --verify downloads/install.sig
 export PATH="$PATH:/usr/sbin"
 
 # Add build users.
-groupadd --force --system nixbld
+sudo groupadd --force --system nixbld
 for i in `seq -w 1 10`; do
-  useradd -g nixbld -G nixbld              \
+  sudo useradd -g nixbld -G nixbld              \
           -d /var/empty -s `which nologin` \
           -c "Nix build user $i" --system  \
           nixbuilder$i || true;
