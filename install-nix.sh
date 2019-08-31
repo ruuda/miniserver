@@ -10,11 +10,11 @@ set -e
 set -x
 
 # Download nix binaries, but only if they haven't been downloaded before.
-nixv="nix-2.0.2-x86_64-linux"
+nixv="nix-2.2.2-x86_64-linux"
 mkdir -p downloads
 wget --no-clobber --directory-prefix=downloads 'https://nixos.org/nix/install'
 wget --no-clobber --directory-prefix=downloads 'https://nixos.org/nix/install.sig'
-wget --no-clobber --directory-prefix=downloads "https://nixos.org/releases/nix/nix-2.0.2/$nixv.tar.bz2"
+wget --no-clobber --directory-prefix=downloads "https://nixos.org/releases/nix/nix-2.2.2/$nixv.tar.bz2"
 
 # Stored locally to avoid hitting the network every time; `gpg --import` will
 # still try to download the key even if it has it locally. The key fingerprint
