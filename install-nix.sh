@@ -44,5 +44,5 @@ rm -fr /tmp/nix-unpack
 source "$HOME/.nix-profile/etc/profile.d/nix.sh"
 
 # Nix does not remain on the path after sourcing that file, once we leave this
-# script. Place a symlink in ~/.local bin to ensure we can access it later.
-ln -s $(which nix) "$HOME/.local/bin/nix"
+# script. Place a symlink in /usr/local/bin to ensure we can access it later.
+sudo ln -s $(which nix) "/usr/local/bin/nix"
