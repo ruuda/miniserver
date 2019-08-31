@@ -1,0 +1,24 @@
+{
+  "name": "Build",
+  "on": [
+    "push"
+  ],
+  "jobs": {
+    "build": {
+      "runs-on": "ubuntu-18.04",
+      "steps": [
+        {
+          "uses": "actions/checkout@v1"
+        },
+        {
+          "name": "Build",
+          "run": "nix build --out-link miniserver.img"
+        },
+        {
+          "name": "Print reproducibility metadata",
+          "run": "sha256sum miniserver.img"
+        },
+      ]
+    }
+  }
+}
