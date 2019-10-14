@@ -21,7 +21,7 @@
         {
           "name": "Print reproducibility metadata",
           "run": "sha256sum miniserver.img"
-        },
+        }
       ]
     }
   }
