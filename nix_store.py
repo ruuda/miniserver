@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 """
-Inspect the differences between the closures of two Nix store paths.
+Extract package names and version of the closure of a Nix store path.
 """
  
 import subprocess
@@ -50,7 +50,6 @@ class Package(NamedTuple):
         return Package('-'.join(name), '-'.join(version))
 
 
-
 def run(*cmd: str) -> str:
     """
     Run a command, return its stdout interpreted as UTF-8.
@@ -66,28 +65,11 @@ def run(*cmd: str) -> str:
     return result.stdout.decode('utf-8')
 
 
-def get_store_paths(nix_file_path: str) -> List[str]:
-    """
-    Return the store paths that the given file builds.
-    """
-    return run('nix', 'path-info', '--file', nix_file_path).splitlines()
-
-
 def get_requisites(path: str) -> List[str]:
     """
     Return the closure of runtime dependencies of the store path.
     """
     return run('nix-store', '--query', '--requisites', path).splitlines()
-
-
-def get_deriver(path: str) -> Optional[Dict[str, Any]]:
-    """
-    If the derivation that produced the given store path exists in the store,
-    parse and return it.
-    """
-    drv_path = run('nix-store', '--query', '--deriver', path).rstrip('\n')
-    derivation = run('nix', 'show-derivation', drv_path)
-    return json.loads(derivation)[drv_path]
 
 
 def get_closure(path: str) -> Iterable[Package]:
@@ -101,9 +83,3 @@ def get_closure(path: str) -> Iterable[Package]:
         results.add(Package.parse(name_version))
 
     return sorted(results)
-
-
-if __name__ == '__main__':
-    for path in get_store_paths('default.nix'):
-        for pkg in get_closure(path):
-            print(pkg)
