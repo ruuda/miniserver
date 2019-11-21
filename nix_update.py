@@ -28,13 +28,19 @@ def print_diff_store_paths(before_path: str, after_path: str) -> None:
 def print_diff_commits(before_ref: str, after_ref: str) -> None:
     """
     Print the diff between default.nix in two commits.
+    Beware, this does run "git checkout".
     """
     before_path = f'/tmp/{abs(hash(before_ref))}'
     after_path = f'/tmp/{abs(hash(after_ref))}'
+
     run('git', 'checkout', before_ref, '--') 
+    print('[1/2] Building before ...', end='', flush=True)
     subprocess.run(['nix', 'build', '--out-link', before_path])
+
     run('git', 'checkout', after_ref, '--') 
+    print('[2/2] Building after ...', end='', flush=True)
     subprocess.run(['nix', 'build', '--out-link', after_path])
+
     print_diff_store_paths(before_path, after_path)
 
 
