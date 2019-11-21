@@ -10,7 +10,45 @@ import subprocess
 import sys
 import json
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional
+
+
+class Package(NamedTuple):
+    """
+    Package name and version, inferred through a heuristic from a store path.
+    """
+    name: str
+    version: str
+
+    def __str__(self) -> str:
+        return self.name + (f'-{self.version}' if self.version != '' else '')
+
+    @staticmethod
+    def parse(path: str) -> Package:
+        parts = path.split('-')
+
+        name = []
+        version = []
+
+        while len(parts) > 0:
+            part = parts[0]
+            if part[0].isdigit():
+                # We assume that a part that starts with a digit is the version
+                # part. So far this works well enough.
+                version = parts
+                break
+            else:
+                name.append(part)
+                parts = parts[1:]
+
+        # Some store path have a suffix because the derivation has multiple
+        # outputs. Merge these into a single entry.
+        for exclude in ('bin', 'dev', 'env', 'lib', 'doc', 'data'):
+            if exclude in version:
+                version.remove(exclude)
+
+        return Package('-'.join(name), '-'.join(version))
+
 
 
 def run(*cmd: str) -> str:
@@ -52,9 +90,20 @@ def get_deriver(path: str) -> Optional[Dict[str, Any]]:
     return json.loads(derivation)[drv_path]
 
 
+def get_closure(path: str) -> Iterable[Package]:
+    """
+    Return the runtime dependencies of the store path as parsed packages.
+    """
+    results = set()
+    for dep_path in get_requisites(path):
+        # Nix store paths are of the form "/nix/store/{sha}-{name_version}".
+        store_path, name_version = dep_path.strip().split('-', maxsplit=1)
+        results.add(Package.parse(name_version))
+
+    return sorted(results)
+
+
 if __name__ == '__main__':
     for path in get_store_paths('default.nix'):
-        reqs = get_requisites(path)
-        for req in reqs:
-            derivation = get_deriver(req)
-            print(derivation['env']['name'], derivation['env'].get('version', '???'))
+        for pkg in get_closure(path):
+            print(pkg)
