@@ -64,18 +64,18 @@ def try_update_nixpkgs(channel: str) -> List[Diff]:
     before_path = f'{tmp_path}-before'
     after_path = f'{tmp_path}-after'
 
-    print('[1/3] Building before ...', end='', flush=True)
+    print('[1/3] Building before ...')
     subprocess.run(['nix', 'build', '--out-link', before_path])
 
     os.rename('nixpkgs-pinned.nix', 'nixpkgs-pinned.nix.bak')
 
-    print('[2/3] Fetching latest Nixpkgs ...', end='', flush=True)
+    print('[2/3] Fetching latest Nixpkgs ...')
     commit_hash = get_latest_revision(channel)
     pinned_expr = format_fetch_nixpkgs_tarball(commit_hash)
     with open('nixpkgs-pinned.nix', 'w', encoding='utf-8') as f:
         f.write(pinned_expr)
 
-    print('[2/3] Building after ...', end='', flush=True)
+    print('[2/3] Building after ...')
     subprocess.run(['nix', 'build', '--out-link', after_path])
 
     befores = get_closure(before_path)
