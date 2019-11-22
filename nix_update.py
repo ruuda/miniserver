@@ -6,13 +6,51 @@ from __future__ import annotations
 Inspect the differences between the closures of two Nix store paths.
 """
  
+import json
 import subprocess
 import sys
+import textwrap
+import urllib.request
 
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional
 
 from nix_store import get_closure, run
 from nix_diff import diff, format_difflist
+
+
+def get_latest_revision(channel: str) -> str:
+    """
+    Return the current HEAD commit hash of the given Nixpkgs channel.
+    This queries the GitHub API.
+    """
+    url = 'https://api.github.com/repos/NixOS/nixpkgs-channels/git/refs/heads/'
+    response = urllib.request.urlopen(url + channel)
+    body = json.load(response)
+    return body['object']['sha']
+
+
+def prefetch_url(url: str) -> str:
+    """
+    Run nix-prefecth-url with unpack and return the sha256.
+    """
+    print('Fetching', url, '...')
+    return run('nix-prefetch-url', '--unpack', '--type', 'sha256', url).rstrip('\n')
+
+
+def format_fetch_nixpkgs_tarball(commit_hash: str) -> str:
+    """
+    For a given Nixpkgs commit, return a fetchTarball expression to fetch it.
+    """
+    url = f'https://github.com/NixOS/nixpkgs/archive/{commit_hash}.tar.gz'
+    archive_hash = prefetch_url(url)
+
+    nix_expr = f"""\
+    fetchTarball {{
+      url = "https://github.com/NixOS/nixpkgs/archive/{commit_hash}.tar.gz";
+      sha256 = "{archive_hash}";
+    }}
+    """
+    return textwrap.dedent(nix_expr)
 
 
 def print_diff_store_paths(before_path: str, after_path: str) -> None:
@@ -46,4 +84,6 @@ def print_diff_commits(before_ref: str, after_ref: str) -> None:
 
 
 if __name__ == '__main__':
+    rev = get_latest_revision('nixos-unstable')
+    print(format_fetch_nixpkgs_tarball(rev))
     print_diff_commits(sys.argv[1], sys.argv[2])
