@@ -92,6 +92,17 @@ def try_update_nixpkgs(channel: str) -> List[Diff]:
     return diffs
 
 
+def commit_nixpkgs_pinned(channel: str, diffs: List[diff]) -> None:
+    """
+    Commit nixpkgs-pinned.nix, and include the diff in the message.
+    """
+    run('git', 'add', 'nixpkgs-pinned.nix')
+    subject = f'Upgrade to latest commit in {channel} channel'
+    body = '\n'.join(format_difflist(diffs))
+    message = f'{subject}\n\n{body}\n'
+    subprocess.run(['git', 'commit', '--message', message])
+
+
 def print_diff_store_paths(before_path: str, after_path: str) -> None:
     """
     Print the diff between two store paths, assuming they exist.
@@ -122,8 +133,15 @@ def print_diff_commits(before_ref: str, after_ref: str) -> None:
     print_diff_store_paths(before_path, after_path)
 
 
+def main(channel: str = 'nixos-unstable') -> None:
+    """
+    Update to the latest commit in the given Nixpkgs channel, and commit that,
+    if newer versions of a dependency are available.
+    """
+    diffs = try_update_nixpkgs(channel)
+    if len(diffs) > 0:
+        commit_nixpkgs_pinned(channel, diffs)
+
+
 if __name__ == '__main__':
-    diffs = try_update_nixpkgs(channel='nixos-unstable')
-    for line in format_difflist(diffs):
-        # TODO: Make a commit.
-        print(line)
+    main(channel='nixos-unstable')
