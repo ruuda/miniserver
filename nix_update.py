@@ -7,15 +7,17 @@ Inspect the differences between the closures of two Nix store paths.
 """
  
 import json
+import os
 import subprocess
 import sys
 import textwrap
 import urllib.request
+import uuid
 
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional
 
 from nix_store import get_closure, run
-from nix_diff import diff, format_difflist
+from nix_diff import Diff, diff, format_difflist
 
 
 def get_latest_revision(channel: str) -> str:
@@ -33,7 +35,6 @@ def prefetch_url(url: str) -> str:
     """
     Run nix-prefecth-url with unpack and return the sha256.
     """
-    print('Fetching', url, '...')
     return run('nix-prefetch-url', '--unpack', '--type', 'sha256', url).rstrip('\n')
 
 
@@ -51,6 +52,44 @@ def format_fetch_nixpkgs_tarball(commit_hash: str) -> str:
     }}
     """
     return textwrap.dedent(nix_expr)
+
+
+def try_update_nixpkgs(channel: str) -> List[Diff]:
+    """
+    Replace nixpkgs-pinned.nix with a newer version that fetches the latest
+    commit in the given channel, and build default.nix. If that produces any
+    changes, keep nixpkgs-pinned.nix, otherwise restore the previous version.
+    """
+    tmp_path = f'/tmp/nix-{uuid.uuid4()}'
+    before_path = f'{tmp_path}-before'
+    after_path = f'{tmp_path}-after'
+
+    print('[1/3] Building before ...', end='', flush=True)
+    subprocess.run(['nix', 'build', '--out-link', before_path])
+
+    os.rename('nixpkgs-pinned.nix', 'nixpkgs-pinned.nix.bak')
+
+    print('[2/3] Fetching latest Nixpkgs ...', end='', flush=True)
+    commit_hash = get_latest_revision(channel)
+    pinned_expr = format_fetch_nixpkgs_tarball(commit_hash)
+    with open('nixpkgs-pinned.nix', 'w', encoding='utf-8') as f:
+        f.write(pinned_expr)
+
+    print('[2/3] Building after ...', end='', flush=True)
+    subprocess.run(['nix', 'build', '--out-link', after_path])
+
+    befores = get_closure(before_path)
+    afters = get_closure(after_path)
+    diffs = list(diff(befores, afters))
+
+    if len(diffs) == 0:
+        # If there were no changes in the output, then the new pinned revision
+        # is not useful to this project, so restore the previously pinned
+        # revision in order to not introduce unnecessary churn. The store paths
+        # can still change. That might mean that e.g. the compiler changed.
+        os.rename('nixpkgs-pinned.nix.bak', 'nixpkgs-pinned.nix')
+
+    return diffs
 
 
 def print_diff_store_paths(before_path: str, after_path: str) -> None:
@@ -84,6 +123,7 @@ def print_diff_commits(before_ref: str, after_ref: str) -> None:
 
 
 if __name__ == '__main__':
-    rev = get_latest_revision('nixos-unstable')
-    print(format_fetch_nixpkgs_tarball(rev))
-    print_diff_commits(sys.argv[1], sys.argv[2])
+    diffs = try_update_nixpkgs(channel='nixos-unstable')
+    for line in format_difflist(diffs):
+        # TODO: Make a commit.
+        print(line)
