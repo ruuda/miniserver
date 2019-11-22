@@ -102,6 +102,9 @@ def commit_nixpkgs_pinned(channel: str, diffs: List[diff]) -> None:
     message = f'{subject}\n\n{body}\n'
     subprocess.run(['git', 'commit', '--message', message])
 
+    # If we commit the new file, then we no longer need the backup.
+    os.remove('nixpkgs-pinned.nix.bak')
+
 
 def print_diff_store_paths(before_path: str, after_path: str) -> None:
     """
