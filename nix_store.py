@@ -27,8 +27,8 @@ class Package(NamedTuple):
     def parse(path: str) -> Package:
         parts = path.split('-')
 
-        name = []
-        version = []
+        name: List[str] = []
+        version: List[str] = []
 
         while len(parts) > 0:
             part = parts[0]

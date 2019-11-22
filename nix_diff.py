@@ -8,7 +8,7 @@ Diff and pretty-print two lists of packages.
 
 import sys
 
-from typing import Iterable, Iterator, NamedTuple, Optional, TypeVar, Union
+from typing import Iterable, Iterator, List, NamedTuple, Optional, TypeVar, Union
 
 from nix_store import Package
 
