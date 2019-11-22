@@ -71,7 +71,7 @@ def diff(befores: Iterable[Package], afters: Iterable[Package]) -> Iterator[Diff
             continue
 
 
-def print_difflist(diffs: List[Diff]) -> None:
+def format_difflist(diffs: List[Diff]) -> Iterator[str]:
     """
     Pretty-print a list of differences.
     """
@@ -121,5 +121,7 @@ def print_difflist(diffs: List[Diff]) -> None:
             v_before = diff.before.version
             v_after = diff.after.version
 
-        print(op, name.ljust(name_len), v_before.ljust(before_len), arrow, v_after.ljust(after_len))
-
+        name = name.ljust(name_len)
+        v_before = v_before.ljust(before_len)
+        v_after = v_after.ljust(after_len)
+        yield f'{op} {name} {v_before} {arrow} {v_after}'

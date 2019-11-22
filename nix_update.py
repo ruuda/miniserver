@@ -12,7 +12,7 @@ import sys
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional
 
 from nix_store import get_closure, run
-from nix_diff import diff, print_difflist
+from nix_diff import diff, format_difflist
 
 
 def print_diff_store_paths(before_path: str, after_path: str) -> None:
@@ -22,7 +22,8 @@ def print_diff_store_paths(before_path: str, after_path: str) -> None:
     befores = get_closure(before_path)
     afters = get_closure(after_path)
     diffs = list(diff(befores, afters))
-    print_difflist(diffs)
+    for line in format_difflist(diffs):
+        print(line)
 
 
 def print_diff_commits(before_ref: str, after_ref: str) -> None:
