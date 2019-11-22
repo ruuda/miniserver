@@ -9,3 +9,6 @@
 # Editor files.
 *.swp
 *.swo
+
+# Python likes to create files everywhere.
+__pycache__
