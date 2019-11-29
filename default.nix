@@ -191,13 +191,21 @@ let
       chmod --recursive +w .
 
       rm -fr locale
-      shopt -s extglob
-      rm -f i18n/locales/!(C)
+      mv i18n/locales/C i18n/locales_C
+      rm i18n/locales/*
+      mv i18n/locales_C i18n/locales/C
 
       # Delete some of the heavier but uncommon charmaps.
-      rm i18n/charmaps/{GB18030,EUC-TW,CP949,JOHAB,GBK}.gz
+      rm i18n/charmaps/{GB18030,EUC-TW,CP949,JOHAB,GBK,BIG5-HKSCS,EUC-JP-MS}.gz
 
       chmod --recursive -w .
+
+      # Delete some of the heavier but oncommon gconv shared objects.
+      cd $out${pkgs.glibc}/lib/gconv
+      chmod +w .
+      rm IBM*.so EBCDIC*.so *JIS*.so
+      rm {libCNS,BIG5HKSCS,GB18030,CP932,GBK,BIG5,EUC-JP-MS,UHC,libGB,GBBIG5}.so
+      chmod -w .
     '';
   };
 in
