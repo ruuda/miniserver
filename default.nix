@@ -182,6 +182,22 @@ let
         echo "copying $file"
         cp --archive $file $out/nix/store
       done
+
+      # Slim down the glibc installation by removing unused locale data. We do
+      # this here, and not in the glibc package, to avoid rebuilding everything
+      # that depends on glibc. We need to make the containing directories
+      # writable to be able to remove files from them.
+      cd $out${pkgs.glibc}/share
+      chmod --recursive +w .
+
+      rm -fr locale
+      shopt -s extglob
+      rm -f i18n/locales/!(C)
+
+      # Delete some of the heavier but uncommon charmaps.
+      rm i18n/charmaps/{GB18030,EUC-TW,CP949,JOHAB,GBK}.gz
+
+      chmod --recursive -w .
     '';
   };
 in
