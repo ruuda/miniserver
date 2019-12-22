@@ -43,7 +43,7 @@ class Package(NamedTuple):
 
         # Some store path have a suffix because the derivation has multiple
         # outputs. Merge these into a single entry.
-        for exclude in ('bin', 'dev', 'env', 'lib', 'doc', 'data'):
+        for exclude in ('bin', 'data', 'dev', 'doc', 'env', 'lib', 'man'):
             if exclude in version:
                 version.remove(exclude)
 
