@@ -104,6 +104,7 @@ def commit_nixpkgs_pinned(channel: str, diffs: List[diff]) -> None:
 
     # If we commit the new file, then we no longer need the backup.
     os.remove('nixpkgs-pinned.nix.bak')
+    print(f'Committed upgrade to latest commit in {channel} channel')
 
 
 def print_diff_store_paths(before_path: str, after_path: str) -> None:
@@ -144,6 +145,8 @@ def main(channel: str = 'nixos-unstable') -> None:
     diffs = try_update_nixpkgs(channel)
     if len(diffs) > 0:
         commit_nixpkgs_pinned(channel, diffs)
+    else:
+        print(f'Latest commit in {channel} channel has no interesting changes.')
 
 
 if __name__ == '__main__':
