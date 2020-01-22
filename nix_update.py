@@ -75,7 +75,7 @@ def try_update_nixpkgs(channel: str) -> List[Diff]:
     with open('nixpkgs-pinned.nix', 'w', encoding='utf-8') as f:
         f.write(pinned_expr)
 
-    print('[2/3] Building after ...')
+    print('[3/3] Building after ...')
     subprocess.run(['nix', 'build', '--out-link', after_path])
 
     befores = get_closure(before_path)
