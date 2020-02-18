@@ -45,23 +45,6 @@ let
     fetchSubmodules = true;
   };
 
-  defaultPage = writeText "about.html" ''
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <title>Welcome to Miniserver!</title>
-    <style>body { width: 35em; margin: 0 auto; font-family: sans-serif; }</style>
-    </head>
-    <body>
-    <h1>Welcome to Miniserver!</h1>
-    <p>If you see this page, the nginx web server is successfully installed and
-    working. Further configuration is required.</p>
-    <p>For online documentation and support please refer to
-    <a href="http://nginx.org/">nginx.org</a>.<br/>
-    </body>
-    </html>
-  '';
-
   defaultNginxConfig = writeText "nginx.conf" ''
     # Don't daemonize. This makes it easier to run under systemd, especially
     # with RootImage=, as there are no pidfiles to juggle around, and no
@@ -91,7 +74,6 @@ let
         }
       }
 
-      include /etc/nginx/conf.d/*;
       include /etc/nginx/sites-enabled/*;
     }
   '';
