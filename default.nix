@@ -78,7 +78,9 @@ let
     }
 
     http {
-      access_log /var/log/nginx/access.log combined;
+      # Same log format as the default "combined" format, but including the host.
+      log_format vhosts '$host $remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"';
+      access_log /var/log/nginx/access.log vhosts;
 
       server {
         listen 80;
@@ -89,8 +91,8 @@ let
         }
       }
 
-      # TODO: include /etc/nginx/conf.d/*;
-      # TODO: include /etc/nginx/sites-enabled/*;
+      include /etc/nginx/conf.d/*;
+      include /etc/nginx/sites-enabled/*;
     }
   '';
 
