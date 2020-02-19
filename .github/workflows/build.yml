@@ -21,6 +21,13 @@
         {
           "name": "Print reproducibility metadata",
           "run": "sha256sum miniserver.img"
+        },
+        {
+          "uses": "actions/upload-artifact@v1",
+          "with": {
+            "name": "miniserver.img",
+            "path": "miniserver.img"
+          }
         }
       ]
     }
