@@ -10,7 +10,7 @@
   # repository is stored in a separate file (as a fetchTarball Nix expression).
   # We then fetch that revision from Github and import it. The revision should
   # periodically be updated to be the last commit of Nixpkgs.
-  import (import ./nixpkgs-pinned.nix) {}
+  (import ./nixpkgs-pinned.nix) {}
 }:
 
 with pkgs;

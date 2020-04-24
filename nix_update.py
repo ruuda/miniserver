@@ -46,10 +46,10 @@ def format_fetch_nixpkgs_tarball(commit_hash: str) -> str:
     archive_hash = prefetch_url(url)
 
     nix_expr = f"""\
-    fetchTarball {{
+    import (fetchTarball {{
       url = "https://github.com/NixOS/nixpkgs/archive/{commit_hash}.tar.gz";
       sha256 = "{archive_hash}";
-    }}
+    }})
     """
     return textwrap.dedent(nix_expr)
 
