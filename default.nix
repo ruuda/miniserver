@@ -16,8 +16,10 @@
 with pkgs;
 let
   # NixOS ships multiple versions of LibreSSL at the same time, and the default
-  # one is not always the latest one. So opt for the latest one explicitly.
-  libressl = libressl_3_0;
+  # one is not always the latest one. However, if we pick one explicitly, we
+  # also have to update it explicitly. I'll take the default and submit a PR for
+  # Nixpkgs when it is outdated, or update here when needed.
+  libressl = pkgs.libressl;
 
   acme-client = pkgs.acme-client.override {
     libressl = libressl;
