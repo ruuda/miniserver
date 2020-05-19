@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 """
-Inspect the differences between the closures of two Nix store paths.
+Update the pinned Nixpkgs snapshot to the latest available Nixpkgs commit, and
+if the new snapshot contains interesting changes, commit the update, including
+the changes in the commit message.
+
+Usage:
+
+  nix_update.py [<owner> [<repo> [<branch>]]]
+
+Defaults to the NixOS/nixpkgs-channels repository and the nixos-unstable branch.
 """
  
 import json
@@ -20,13 +28,13 @@ from nix_store import get_closure, run
 from nix_diff import Diff, diff, format_difflist
 
 
-def get_latest_revision(channel: str) -> str:
+def get_latest_revision(owner: str, repo: str, branch: str) -> str:
     """
-    Return the current HEAD commit hash of the given Nixpkgs channel.
+    Return the current HEAD commit hash of the given branch.
     This queries the GitHub API.
     """
-    url = 'https://api.github.com/repos/NixOS/nixpkgs-channels/git/refs/heads/'
-    response = urllib.request.urlopen(url + channel)
+    url = f'https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{branch}'
+    response = urllib.request.urlopen(url)
     body = json.load(response)
     return body['object']['sha']
 
@@ -38,23 +46,23 @@ def prefetch_url(url: str) -> str:
     return run('nix-prefetch-url', '--unpack', '--type', 'sha256', url).rstrip('\n')
 
 
-def format_fetch_nixpkgs_tarball(commit_hash: str) -> str:
+def format_fetch_nixpkgs_tarball(owner: str, repo: str, commit_hash: str) -> str:
     """
     For a given Nixpkgs commit, return a fetchTarball expression to fetch it.
     """
-    url = f'https://github.com/NixOS/nixpkgs/archive/{commit_hash}.tar.gz'
+    url = f'https://github.com/{owner}/{repo}/archive/{commit_hash}.tar.gz'
     archive_hash = prefetch_url(url)
 
     nix_expr = f"""\
     import (fetchTarball {{
-      url = "https://github.com/NixOS/nixpkgs/archive/{commit_hash}.tar.gz";
+      url = "https://github.com/{owner}/{repo}/archive/{commit_hash}.tar.gz";
       sha256 = "{archive_hash}";
     }})
     """
     return textwrap.dedent(nix_expr)
 
 
-def try_update_nixpkgs(channel: str) -> List[Diff]:
+def try_update_nixpkgs(owner: str, repo: str, branch: str) -> List[Diff]:
     """
     Replace nixpkgs-pinned.nix with a newer version that fetches the latest
     commit in the given channel, and build default.nix. If that produces any
@@ -70,8 +78,8 @@ def try_update_nixpkgs(channel: str) -> List[Diff]:
     os.rename('nixpkgs-pinned.nix', 'nixpkgs-pinned.nix.bak')
 
     print('[2/3] Fetching latest Nixpkgs ...')
-    commit_hash = get_latest_revision(channel)
-    pinned_expr = format_fetch_nixpkgs_tarball(commit_hash)
+    commit_hash = get_latest_revision(owner, repo, branch)
+    pinned_expr = format_fetch_nixpkgs_tarball(owner, repo, commit_hash)
     with open('nixpkgs-pinned.nix', 'w', encoding='utf-8') as f:
         f.write(pinned_expr)
 
@@ -137,17 +145,25 @@ def print_diff_commits(before_ref: str, after_ref: str) -> None:
     print_diff_store_paths(before_path, after_path)
 
 
-def main(channel: str = 'nixos-unstable') -> None:
+def main(owner: str, repo: str, branch: str) -> None:
     """
-    Update to the latest commit in the given Nixpkgs channel, and commit that,
-    if newer versions of a dependency are available.
+    Update to the latest commit in the given branch (called channel for Nixpkgs),
+    and commit that, if newer versions of a dependency are available.
     """
-    diffs = try_update_nixpkgs(channel)
+    diffs = try_update_nixpkgs(owner, repo, branch)
     if len(diffs) > 0:
-        commit_nixpkgs_pinned(channel, diffs)
+        commit_nixpkgs_pinned(branch, diffs)
     else:
-        print(f'Latest commit in {channel} channel has no interesting changes.')
+        print(f'Latest commit in {branch} channel has no interesting changes.')
+
+
+def getarg(n: int, default: str) -> str:
+    return sys.argv[n] if len(sys.argv) > n else default
 
 
 if __name__ == '__main__':
-    main(channel='nixos-unstable')
+    main(
+        owner=getarg(1, 'NixOS'),
+        repo=getarg(2, 'nixpkgs-channels'),
+        branch=getarg(3, 'nixos-unstable'),
+    )
