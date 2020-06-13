@@ -1,35 +1,24 @@
-{
-  "name": "Build",
-  "on": [
-    "push"
-  ],
-  "jobs": {
-    "build": {
-      "runs-on": "ubuntu-18.04",
-      "steps": [
-        {
-          "uses": "actions/checkout@v1"
-        },
-        {
-          "name": "Install build dependencies",
-          "run": "./install-nix.sh"
-        },
-        {
-          "name": "Build",
-          "run": "nix build --out-link miniserver.img"
-        },
-        {
-          "name": "Print reproducibility metadata",
-          "run": "sha256sum miniserver.img"
-        },
-        {
-          "uses": "actions/upload-artifact@v1",
-          "with": {
-            "name": "miniserver.img",
-            "path": "miniserver.img"
-          }
-        }
-      ]
-    }
-  }
-}
+name: "Build"
+
+on:
+  - "push"
+
+jobs:
+  build:
+    runs-on: "ubuntu-18.04"
+    steps:
+      - uses: "actions/checkout@v2"
+
+      - name: "Install build dependencies"
+        run: "./install-nix.sh"
+
+      - name: "Build"
+        run: "nix build --out-link miniserver.img"
+
+      - name: "Print reproducibility metadata"
+        run: "sha256sum miniserver.img"
+
+      - uses: "actions/upload-artifact@v2"
+        with:
+          name: "miniserver.img"
+          path: "miniserver.img"
