@@ -1,7 +1,6 @@
 name: "Build"
 
-on:
-  - "push"
+on: "push"
 
 jobs:
   build:
@@ -10,7 +9,9 @@ jobs:
       - uses: "actions/checkout@v2"
 
       - name: "Install build dependencies"
-        run: "./install-nix.sh"
+        run: |
+          ./install-nix.sh
+          sudo apt install systemd-container
 
       - name: "Build"
         run: "nix build --out-link miniserver.img"
@@ -19,7 +20,7 @@ jobs:
         run: "sha256sum miniserver.img"
 
       - name: "Dry-run Nginx"
-        run: "systemd-nspawn --image miniserver.img --ephemeral -- /usr/bin/nginx -V"
+        run: "sudo systemd-nspawn --image miniserver.img --ephemeral -- /usr/bin/nginx -V"
 
       - uses: "actions/upload-artifact@v2"
         with:
