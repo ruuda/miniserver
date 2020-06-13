@@ -18,6 +18,9 @@ jobs:
       - name: "Print reproducibility metadata"
         run: "sha256sum miniserver.img"
 
+      - name: "Dry-run Nginx"
+        run: "systemd-nspawn --image miniserver.img --ephemeral -- /usr/bin/nginx -V"
+
       - uses: "actions/upload-artifact@v2"
         with:
           name: "miniserver.img"
