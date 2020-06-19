@@ -25,7 +25,7 @@ import uuid
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional
 
 from nix_store import get_closure, run
-from nix_diff import Diff, diff, format_difflist
+from nix_diff import Addition, Change, Diff, Removal, diff, format_difflist
 
 
 def get_latest_revision(owner: str, repo: str, branch: str) -> str:
@@ -100,19 +100,86 @@ def try_update_nixpkgs(owner: str, repo: str, branch: str) -> List[Diff]:
     return diffs
 
 
-def commit_nixpkgs_pinned(channel: str, diffs: List[diff]) -> None:
+def summarize(diffs: List[Diff]) -> Optional[str]:
+    """
+    Return a short subject line that summarizes the diff. Returns none if we
+    can't find a good summary.
+    """
+    changes: List[Change] = []
+    num_other_changes = 0
+
+    for diff in diffs:
+        if isinstance(diff, Change):
+            changes.append(diff)
+        else:
+            num_other_changes += 1
+
+    # We list packages by shortest name first, to get as much information in the
+    # subject line as possible.
+    changes.sort(key=lambda ch: len(str(ch.after)))
+    changes.reverse()
+
+    if len(changes) == 0:
+        return None
+
+    def tail(n: int) -> str:
+        if num_other_changes + n == 0:
+            return ''
+        elif num_other_changes + n == 1:
+            return ', and one more change'
+        else:
+            return f', and {num_other_changes + n} changes'
+
+    # Generate both long-form updates and short-form updates.
+    changes_long = [f'{ch.after.name} to {ch.after.version}' for ch in changes]
+    changes_short = [ch.after.name for ch in changes]
+
+    # Generate all possible messages, in order of preference. We prefer to
+    # include as much names as possible, and we prefer to have them with
+    # versions over not having versions.
+    messages = []
+    omitted = 0
+    while len(changes_long) > 0:
+        messages.append('Update ' + ', '.join(changes_long) + tail(omitted))
+        messages.append('Update ' + ', '.join(changes_short) + tail(omitted))
+        changes_long.pop()
+        changes_short.pop()
+        omitted += 1
+
+    # Then take the most preferred message that still fits in the conventional
+    # Git subject line limit
+    for message in messages:
+        if len(message) < 52:
+            return message
+
+    # If nothing fits, we ran out.
+    return None
+
+
+def commit_nixpkgs_pinned(owner: str, repo: str, branch: str, diffs: List[Diff]) -> None:
     """
     Commit nixpkgs-pinned.nix, and include the diff in the message.
     """
     run('git', 'add', 'nixpkgs-pinned.nix')
-    subject = f'Upgrade to latest commit in {channel} channel'
-    body = '\n'.join(format_difflist(diffs))
+
+    body_lines = [
+        *textwrap.wrap(
+            'This updates the pinned Nixpkgs snapshot to the latest commit '
+            f'in the {branch} branch of {owner}/{repo}.',
+            width=72,
+        ),
+        '',
+        *format_difflist(diffs),
+    ]
+
+    subject = summarize(diffs) or f'Update to latest commit in {owner}/{repo} {branch}'
+    body = '\n'.join(body_lines)
     message = f'{subject}\n\n{body}\n'
     subprocess.run(['git', 'commit', '--message', message])
 
     # If we commit the new file, then we no longer need the backup.
     os.remove('nixpkgs-pinned.nix.bak')
-    print(f'Committed upgrade to latest commit in {channel} channel')
+    print(f'Committed upgrade to latest commit in {owner}/{repo} {branch}')
 
 
 def print_diff_store_paths(before_path: str, after_path: str) -> None:
@@ -152,7 +219,7 @@ def main(owner: str, repo: str, branch: str) -> None:
     """
     diffs = try_update_nixpkgs(owner, repo, branch)
     if len(diffs) > 0:
-        commit_nixpkgs_pinned(branch, diffs)
+        commit_nixpkgs_pinned(owner, repo, branch, diffs)
     else:
         print(f'Latest commit in {branch} channel has no interesting changes.')
 
