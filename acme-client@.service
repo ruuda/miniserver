@@ -6,13 +6,12 @@ Requires=network.target nss-lookup.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/acme-client -help %i
+ExecStart=/usr/bin/acme-client -help %I
 PrivateTmp=true
 User=nobody
 
-RootImage=/home/ruud/repos/miniserver/miniserver.img
-# MountAPIVFS=true
-# PrivateDevices=true
+RootImage=/var/lib/images/miniserver/latest
+MountAPIVFS=true
 
 # We take acme-client with its default configuration, which has seccomp support
 # disabled. [1] Fortunately we can bring back a lot, albeit not at the same
@@ -40,5 +39,5 @@ ProtectKernelTunables=true
 
 # Bind-mount /var/www/well-known inside the chroot. This is where the response
 # to the challenge will be written, it should be served by Nginx.
-# BindPaths=/var/www/well-known
-# BindPaths=/etc/certificates/%I
+BindPaths=/var/www/well-known
+BindPaths=/var/certificates/%I
