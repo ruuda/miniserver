@@ -38,7 +38,8 @@ ProtectKernelTunables=true
 # already read-only. Similarly, ProtectHome= is not useful because the paths it
 # protect do not exist in our filesystem.
 
-# Bind-mount /var/www/well-known inside the chroot. This is where the response
-# to the challenge will be written, it should be served by Nginx.
-BindPaths=/var/www/well-known
+# Bind-mount /var/www/acme inside the chroot. This is where the response
+# to the challenge will be written, it should be served by Nginx at
+# .well-known/acme-challenge.
+BindPaths=/var/www/acme
 BindPaths=/var/certificates/%I
