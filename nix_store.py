@@ -6,9 +6,10 @@ from __future__ import annotations
 Extract package names and version of the closure of a Nix store path.
 """
  
+import json
+import os.path
 import subprocess
 import sys
-import json
 
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 
@@ -133,11 +134,30 @@ def get_packages_from_derivations(drv_paths: List[str]) -> Iterable[Package]:
     """
     Extract package names and versions from each of the derivation files.
     """
+    existing_paths = []
+    missing_paths = []
+    for path in drv_paths:
+        if os.path.isfile(path):
+            existing_paths.append(path)
+        else:
+            missing_paths.append(path)
+
     # "nix show-derivation" produces a map from store path to derivation.
-    path_to_drv = json.loads(run('nix', 'show-derivation', *drv_paths))
+    path_to_drv = json.loads(run('nix', 'show-derivation', *existing_paths))
     for drv_path, derivation in path_to_drv.items():
         package = Package.parse_derivation(derivation)
         if package is not None:
+            yield package
+
+    # For the .drv files that we don't have locally, there is no way to obtain
+    # them as far as I am aware. See also
+    # https://discourse.nixos.org/t/how-to-get-a-missing-drv-file-for-a-derivation-from-nixpkgs/2300
+    # So instead, we get the details heuristically from the store path.
+    for drv_path in missing_paths:
+        _store_prefix, name = drv_path.split('-', maxsplit=1)
+        name = name[:-4]  # Cut off the .drv suffix.
+        package = Package.parse(name)
+        if package.name != '' and package.version != '':
             yield package
 
 
