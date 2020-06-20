@@ -72,6 +72,30 @@ def get_requisites(path: str) -> List[str]:
     return run('nix-store', '--query', '--requisites', path).splitlines()
 
 
+def get_build_requisites(path: str) -> Set[Package]:
+    """
+    Return the closure of build time dependencies of the store path.
+    """
+    derivation = run('nix-store', '--query', '--deriver', path).strip()
+    deps_closure = run('nix-store', '--query', '--requisites', derivation)
+    deps_derivations = [p for p in deps_closure.splitlines() if p.endswith('.drv')]
+
+    results = set()
+
+    # Produces a map from store path to derivation.
+    details = json.loads(run('nix', 'show-derivation', *deps_derivations))
+    for drv_path, derivation in details.items():
+        env = derivation['env']
+        # Packages have a pname, derivations without pname are things like
+        # sources, patch files, etc.
+        if 'pname' in env:
+            pname = env['pname']
+            version = env['version']
+            results.add(Package(pname, version))
+
+    return results
+
+
 def get_closure(path: str) -> Iterable[Package]:
     """
     Return the runtime dependencies of the store path as parsed packages.
