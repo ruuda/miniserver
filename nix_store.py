@@ -25,7 +25,10 @@ class Package(NamedTuple):
 
     @staticmethod
     def parse(path: str) -> Package:
-        parts = path.split('-')
+        """
+        Parse a package name and version using heuristics, from a name-version.
+        """
+        parts = [part for part in path.split('-') if part != '']
 
         name: List[str] = []
         version: List[str] = []
@@ -49,6 +52,67 @@ class Package(NamedTuple):
 
         return Package('-'.join(name), '-'.join(version))
 
+    @staticmethod
+    def parse_derivation(derivation: Dict[str, Any]) -> Optional[Package]:
+        """
+        Try to extract structured name and version from a derivation returned by
+        nix show-derivation, if the derivation is a package.
+        """
+        if derivation['platform'] == 'builtin':
+            # If the derivation is produced by a builtin, it is not a package.
+            return None
+
+        if derivation['outputs'].get('out', {}).get('hash') is not None:
+            # If the derivation is a fixed-output derivation, then we assume
+            # it's not a package (but instead likely something we fetch from the
+            # network.)
+            return None
+
+        if len(derivation['inputDrvs']) <= 2:
+            # Some things are helper utils, not packages. We assume a package
+            # has at least three inputs: Bash, stdenv, and its fetched source.
+            # These helpers often have only two, no source.
+            return None
+
+        env = derivation['env']
+        pname = env.get('pname')
+        name = env.get('name')
+        version = env.get('version')
+
+        if name is None:
+            # Packages have names.
+            return None
+
+        if name.split('-')[-1] == 'hook' or name.split('-')[-1] == 'hook.sh':
+            # Hooks are not packages.
+            return None
+
+        if name.endswith('stdenv-linux'):
+            # The stdenv is special, we don't count it as a package.
+            return None
+
+        if pname is not None and version is not None:
+            # Best case we have the full metadata split out.
+            return Package(pname, version)
+
+        if version is not None:
+            # Sometimes we have only the name (including version) to go by, but
+            # at least the version is known.
+            if name.endswith('-' + version):
+                return Package(name[:-len(version) - 1], version)
+
+        # In some cases, we only have the name to go by, and we hope it
+        # includes the version too. This can lead to false positives: some
+        # derivations such as patch files or source archives are not
+        # packages at all, but so far I have not found a reliable way to
+        # tell them apart. For now, the heuristic is whether we managed to
+        # parse the name in a sensible way.
+        package = Package.parse(name)
+        if package.name != '' and package.version != '':
+            return package
+
+        return None
+
 
 def run(*cmd: str) -> str:
     """
@@ -65,11 +129,25 @@ def run(*cmd: str) -> str:
     return result.stdout.decode('utf-8')
 
 
-def get_requisites(path: str) -> List[str]:
+def get_packages_from_derivations(drv_paths: List[str]) -> Iterable[Package]:
+    """
+    Extract package names and versions from each of the derivation files.
+    """
+    # "nix show-derivation" produces a map from store path to derivation.
+    path_to_drv = json.loads(run('nix', 'show-derivation', *drv_paths))
+    for drv_path, derivation in path_to_drv.items():
+        package = Package.parse_derivation(derivation)
+        if package is not None:
+            yield package
+
+
+def get_requisites(path: str) -> Set[Package]:
     """
     Return the closure of runtime dependencies of the store path.
     """
-    return run('nix-store', '--query', '--requisites', path).splitlines()
+    runtime_deps = run('nix-store', '--query', '--requisites', path).splitlines()
+    derivations = run('nix-store', '--query', '--deriver', *runtime_deps).splitlines()
+    return set(get_packages_from_derivations(derivations))
 
 
 def get_build_requisites(path: str) -> Set[Package]:
@@ -79,31 +157,4 @@ def get_build_requisites(path: str) -> Set[Package]:
     derivation = run('nix-store', '--query', '--deriver', path).strip()
     deps_closure = run('nix-store', '--query', '--requisites', derivation)
     deps_derivations = [p for p in deps_closure.splitlines() if p.endswith('.drv')]
-
-    results = set()
-
-    # Produces a map from store path to derivation.
-    details = json.loads(run('nix', 'show-derivation', *deps_derivations))
-    for drv_path, derivation in details.items():
-        env = derivation['env']
-        # Packages have a pname, derivations without pname are things like
-        # sources, patch files, etc.
-        if 'pname' in env:
-            pname = env['pname']
-            version = env['version']
-            results.add(Package(pname, version))
-
-    return results
-
-
-def get_closure(path: str) -> Iterable[Package]:
-    """
-    Return the runtime dependencies of the store path as parsed packages.
-    """
-    results = set()
-    for dep_path in get_requisites(path):
-        # Nix store paths are of the form "/nix/store/{sha}-{name_version}".
-        store_path, name_version = dep_path.strip().split('-', maxsplit=1)
-        results.add(Package.parse(name_version))
-
-    return sorted(results)
+    return set(get_packages_from_derivations(deps_derivations))
