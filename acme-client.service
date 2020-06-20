@@ -46,5 +46,5 @@ ProtectKernelTunables=true
 # to the challenge will be written, it should be served by Nginx at
 # .well-known/acme-challenge.
 BindPaths=/var/www/acme
-BindPaths=/var/certificates/%I
+BindPaths=/var/certificates
 BindReadOnlyPaths=/etc/acme-client

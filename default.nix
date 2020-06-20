@@ -152,7 +152,7 @@ let
       mkdir -p $out/var/log/journal
       mkdir -p $out/var/log/nginx
       mkdir -p $out/var/tmp
-      mkdir -p $out/var/www
+      mkdir -p $out/var/www/acme
       ln -s /usr/bin $out/bin
       ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
       ln -s ${acme-client}/bin/acme-client $out/usr/bin/acme-client
