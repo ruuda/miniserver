@@ -8,7 +8,8 @@ Requires=network.target nss-lookup.target
 Type=oneshot
 ExecStart=/usr/bin/acme-client -help %I
 PrivateTmp=true
-User=nobody
+User=acme-client
+Group=www
 
 RootImage=/var/lib/images/miniserver/latest
 MountAPIVFS=true
@@ -20,8 +21,8 @@ MountAPIVFS=true
 # [1]: https://github.com/kristapsdz/acme-client-portable/blob/
 #      e82c130dd942a74c50c1631042c1bc60fafe8bad/Linux-seccomp.md
 
+PrivateUsers=true
 MemoryDenyWriteExecute=true
-DynamicUser=true
 
 # Ensure that the process can never gain new priviliges through execve, and that
 # they cannot change kernel tunables.
