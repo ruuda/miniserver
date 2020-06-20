@@ -10,7 +10,7 @@ import subprocess
 import sys
 import json
 
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 
 
 class Package(NamedTuple):
@@ -141,7 +141,7 @@ def get_packages_from_derivations(drv_paths: List[str]) -> Iterable[Package]:
             yield package
 
 
-def get_requisites(path: str) -> Set[Package]:
+def get_runtime_requisites(path: str) -> Set[Package]:
     """
     Return the closure of runtime dependencies of the store path.
     """

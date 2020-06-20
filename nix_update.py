@@ -24,7 +24,7 @@ import uuid
 
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional
 
-from nix_store import get_closure, run
+from nix_store import get_build_requisites, get_runtime_requisites, run
 from nix_diff import Addition, Change, Diff, Removal, diff, format_difflist
 
 
@@ -36,7 +36,8 @@ def get_latest_revision(owner: str, repo: str, branch: str) -> str:
     url = f'https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{branch}'
     response = urllib.request.urlopen(url)
     body = json.load(response)
-    return body['object']['sha']
+    sha: str = body['object']['sha']
+    return sha
 
 
 def prefetch_url(url: str) -> str:
@@ -62,7 +63,15 @@ def format_fetch_nixpkgs_tarball(owner: str, repo: str, commit_hash: str) -> str
     return textwrap.dedent(nix_expr)
 
 
-def try_update_nixpkgs(owner: str, repo: str, branch: str) -> List[Diff]:
+class Diffs(NamedTuple):
+    build: List[Diff]
+    runtime: List[Diff]
+
+    def __len__(self) -> int:
+        return len(self.build) + len(self.runtime)
+
+
+def try_update_nixpkgs(owner: str, repo: str, branch: str) -> Diffs:
     """
     Replace nixpkgs-pinned.nix with a newer version that fetches the latest
     commit in the given channel, and build default.nix. If that produces any
@@ -86,38 +95,64 @@ def try_update_nixpkgs(owner: str, repo: str, branch: str) -> List[Diff]:
     print('[3/3] Building after ...')
     subprocess.run(['nix', 'build', '--out-link', after_path])
 
-    befores = get_closure(before_path)
-    afters = get_closure(after_path)
-    diffs = list(diff(befores, afters))
+    befores_build = get_build_requisites(before_path)
+    befores_runtime = get_runtime_requisites(before_path)
 
-    if len(diffs) == 0:
+    afters_build = get_build_requisites(after_path)
+    afters_runtime = get_runtime_requisites(after_path)
+
+    # We only want to show dependencies once, if it already is a runtime
+    # dependency, don't show it under build-time dependencies too.
+    befores_build -= befores_runtime
+    afters_build -= afters_runtime
+
+    diffs_build = list(diff(sorted(befores_build), sorted(afters_build)))
+    diffs_runtime = list(diff(sorted(befores_runtime), sorted(afters_runtime)))
+    result = Diffs(diffs_build, diffs_runtime)
+
+    if len(result) == 0:
         # If there were no changes in the output, then the new pinned revision
         # is not useful to this project, so restore the previously pinned
         # revision in order to not introduce unnecessary churn. The store paths
         # can still change. That might mean that e.g. the compiler changed.
+        # TODO: So should the build dependencies count or not?
         os.rename('nixpkgs-pinned.nix.bak', 'nixpkgs-pinned.nix')
 
-    return diffs
+    return result
 
 
-def summarize(diffs: List[Diff]) -> Optional[str]:
+def summarize(diffs: Diffs) -> Optional[str]:
     """
     Return a short subject line that summarizes the diff. Returns none if we
     can't find a good summary.
     """
-    changes: List[Change] = []
+    changes_build: List[Change] = []
+    changes_runtime: List[Change] = []
     num_other_changes = 0
 
-    for diff in diffs:
+    for diff in diffs.build:
         if isinstance(diff, Change):
-            changes.append(diff)
+            changes_build.append(diff)
+        else:
+            num_other_changes += 1
+
+    for diff in diffs.runtime:
+        if isinstance(diff, Change):
+            changes_runtime.append(diff)
         else:
             num_other_changes += 1
 
     # We list packages by shortest name first, to get as much information in the
     # subject line as possible.
-    changes.sort(key=lambda ch: len(str(ch.after)))
-    changes.reverse()
+    changes_build.sort(key=lambda ch: len(str(ch.after)))
+    changes_build.reverse()
+
+    changes_runtime.sort(key=lambda ch: len(str(ch.after)))
+    changes_runtime.reverse()
+
+    # Combine all changes, but prefer runtime deps over build deps when space
+    # is scarce.
+    changes = changes_runtime + changes_build
 
     if len(changes) == 0:
         return None
@@ -156,7 +191,7 @@ def summarize(diffs: List[Diff]) -> Optional[str]:
     return None
 
 
-def commit_nixpkgs_pinned(owner: str, repo: str, branch: str, diffs: List[Diff]) -> None:
+def commit_nixpkgs_pinned(owner: str, repo: str, branch: str, diffs: Diffs) -> None:
     """
     Commit nixpkgs-pinned.nix, and include the diff in the message.
     """
@@ -168,9 +203,23 @@ def commit_nixpkgs_pinned(owner: str, repo: str, branch: str, diffs: List[Diff])
             f'in the {branch} branch of {owner}/{repo}.',
             width=72,
         ),
-        '',
-        *format_difflist(diffs),
     ]
+
+    if len(diffs.runtime) > 0:
+        body_lines += [
+            '',
+            'Runtime dependencies:',
+            '',
+            *format_difflist(diffs.runtime),
+        ]
+
+    if len(diffs.build) > 0:
+        body_lines += [
+            '',
+            'Build dependencies:',
+            '',
+            *format_difflist(diffs.build),
+        ]
 
     subject = summarize(diffs) or f'Update to latest commit in {owner}/{repo} {branch}'
     body = '\n'.join(body_lines)
@@ -180,36 +229,6 @@ def commit_nixpkgs_pinned(owner: str, repo: str, branch: str, diffs: List[Diff])
     # If we commit the new file, then we no longer need the backup.
     os.remove('nixpkgs-pinned.nix.bak')
     print(f'Committed upgrade to latest commit in {owner}/{repo} {branch}')
-
-
-def print_diff_store_paths(before_path: str, after_path: str) -> None:
-    """
-    Print the diff between two store paths, assuming they exist.
-    """
-    befores = get_closure(before_path)
-    afters = get_closure(after_path)
-    diffs = list(diff(befores, afters))
-    for line in format_difflist(diffs):
-        print(line)
-
-
-def print_diff_commits(before_ref: str, after_ref: str) -> None:
-    """
-    Print the diff between default.nix in two commits.
-    Beware, this does run "git checkout".
-    """
-    before_path = f'/tmp/{abs(hash(before_ref))}'
-    after_path = f'/tmp/{abs(hash(after_ref))}'
-
-    run('git', 'checkout', before_ref, '--') 
-    print('[1/2] Building before ...', end='', flush=True)
-    subprocess.run(['nix', 'build', '--out-link', before_path])
-
-    run('git', 'checkout', after_ref, '--') 
-    print('[2/2] Building after ...', end='', flush=True)
-    subprocess.run(['nix', 'build', '--out-link', after_path])
-
-    print_diff_store_paths(before_path, after_path)
 
 
 def main(owner: str, repo: str, branch: str) -> None:
@@ -230,7 +249,7 @@ def getarg(n: int, default: str) -> str:
 
 if __name__ == '__main__':
     main(
-        owner=getarg(1, 'NixOS'),
+        owner=getarg(1, 'nixos'),
         repo=getarg(2, 'nixpkgs-channels'),
         branch=getarg(3, 'nixos-unstable'),
     )
