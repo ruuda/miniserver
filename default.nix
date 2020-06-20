@@ -140,6 +140,7 @@ let
       # because systemd mounts a tmpfs there. /run is not needed by the systemd
       # unit, but it is required by systemd-nspawn, so we add it too.
       mkdir -p $out/dev
+      mkdir -p $out/etc/acme-client
       mkdir -p $out/etc/nginx
       mkdir -p $out/nix/store
       mkdir -p $out/proc
@@ -147,6 +148,7 @@ let
       mkdir -p $out/sys
       mkdir -p $out/tmp
       mkdir -p $out/usr/bin
+      mkdir -p $out/var/certificates
       mkdir -p $out/var/log/journal
       mkdir -p $out/var/log/nginx
       mkdir -p $out/var/tmp
