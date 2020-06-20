@@ -8,10 +8,12 @@ jobs:
     steps:
       - uses: "actions/checkout@v2"
 
+      - uses: "cachix/install-nix-action@v10"
+        with:
+          nix_path: "nixpkgs=channel:nixos-unstable"
+
       - name: "Install build dependencies"
-        run: |
-          ./install-nix.sh
-          sudo apt install systemd-container
+        run: "sudo apt install systemd-container"
 
       - name: "Build"
         run: "nix build --out-link miniserver.img"
