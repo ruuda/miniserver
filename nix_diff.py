@@ -52,15 +52,17 @@ def diff(befores: Iterable[Package], afters: Iterable[Package]) -> Iterator[Diff
         if left is None and right is None:
             break
 
-        if right is None or left.name < right.name:
+        if left is not None and (right is None or left.name < right.name):
             yield Removal(left)
             left = next_opt(it_befores)
             continue
 
-        if left is None or left.name > right.name:
+        if right is not None and (left is None or left.name > right.name):
             yield Addition(right)
             right = next_opt(it_afters)
             continue
+
+        assert left is not None and right is not None, 'Inputs must be sorted.'
 
         if left.name == right.name:
             if left.version != right.version:
