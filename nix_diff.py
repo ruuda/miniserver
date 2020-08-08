@@ -99,8 +99,8 @@ def format_difflist(diffs: List[Diff]) -> Iterator[str]:
         return
 
     name_len = max(len(name) for name in names)
-    before_len = max(len(version) for version in versions_before)
-    after_len = max(len(version) for version in versions_after)
+    before_len = max(len(version) for version in ['0', *versions_before])
+    after_len = max(len(version) for version in ['0', *versions_after])
 
     for diff in diffs:
         op = ' '
