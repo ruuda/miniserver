@@ -11,7 +11,7 @@ Usage:
 
   nix_update.py [<owner> [<repo> [<branch>]]]
 
-Defaults to the NixOS/nixpkgs-channels repository and the nixos-unstable branch.
+Defaults to the NixOS/nixpkgs repository and the nixos-unstable branch.
 """
  
 import json
@@ -250,6 +250,6 @@ def getarg(n: int, default: str) -> str:
 if __name__ == '__main__':
     main(
         owner=getarg(1, 'nixos'),
-        repo=getarg(2, 'nixpkgs-channels'),
+        repo=getarg(2, 'nixpkgs'),
         branch=getarg(3, 'nixos-unstable'),
     )
