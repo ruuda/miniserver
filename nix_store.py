@@ -20,9 +20,31 @@ class Package(NamedTuple):
     """
     name: str
     version: str
+    group: Optional[str] = None
 
     def __str__(self) -> str:
         return self.name + (f'-{self.version}' if self.version != '' else '')
+
+    def _extract_group(self) -> Package:
+        """
+        If the package is part of a group, e.g "perl5.32.0-CGI", then we should
+        not treat the group as part of the name. This is to avoid triggering
+        huge diffs if Perl is bumped, but the Perl package versions don’t change.
+        """
+        assert self.group == None, 'Can only extract group once.'
+
+        parts = self.name.split('-', maxsplit=1)
+
+        if len(parts) == 1:
+            return self
+
+        # Use heuristics; for now we only detect this grouping situation for
+        # Perl. I believe it also applies to Python, but I can add it when that
+        # happens.
+        if parts[0].startswith('perl5'):
+            return Package(name=parts[1], version=self.version, group=parts[0])
+
+        return self
 
     @staticmethod
     def parse(path: str) -> Package:
@@ -51,7 +73,7 @@ class Package(NamedTuple):
             if exclude in version:
                 version.remove(exclude)
 
-        return Package('-'.join(name), '-'.join(version))
+        return Package('-'.join(name), '-'.join(version))._extract_group()
 
     @staticmethod
     def parse_derivation(derivation: Dict[str, Any]) -> Optional[Package]:
@@ -94,13 +116,13 @@ class Package(NamedTuple):
 
         if pname is not None and version is not None:
             # Best case we have the full metadata split out.
-            return Package(pname, version)
+            return Package(pname, version)._extract_group()
 
         if version is not None:
             # Sometimes we have only the name (including version) to go by, but
             # at least the version is known.
             if name.endswith('-' + version):
-                return Package(name[:-len(version) - 1], version)
+                return Package(name[:-len(version) - 1], version)._extract_group()
 
         # In some cases, we only have the name to go by, and we hope it
         # includes the version too. This can lead to false positives: some
