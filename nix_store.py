@@ -25,6 +25,17 @@ class Package(NamedTuple):
     def __str__(self) -> str:
         return self.name + (f'-{self.version}' if self.version != '' else '')
 
+    def name_with_group(self) -> str:
+        """
+        If the package is part of a group, return the name prefixed by the group
+        name. E.g. return "perl5.31.0-CGI" when the name is "CGI" and the group
+        is "perl5.31.0".
+        """
+        if self.group is not None:
+            return f'{self.group}-{self.name}'
+        else:
+            return self.name
+
     def _extract_group(self) -> Package:
         """
         If the package is part of a group, e.g "perl5.32.0-CGI", then we should

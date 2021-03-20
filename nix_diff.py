@@ -83,13 +83,13 @@ def format_difflist(diffs: List[Diff]) -> Iterator[str]:
 
     for diff in diffs:
         if isinstance(diff, Addition):
-            names.add(diff.package.name)
+            names.add(diff.package.name_with_group())
             versions_after.add(diff.package.version)
         if isinstance(diff, Removal):
-            names.add(diff.package.name)
+            names.add(diff.package.name_with_group())
             versions_before.add(diff.package.version)
         if isinstance(diff, Change):
-            names.add(diff.before.name)
+            names.add(diff.before.name_with_group())
             versions_before.add(diff.before.version)
             versions_after.add(diff.after.version)
 
@@ -111,15 +111,15 @@ def format_difflist(diffs: List[Diff]) -> Iterator[str]:
 
         if isinstance(diff, Addition):
             op = '+'
-            name = diff.package.name
+            name = diff.package.name_with_group()
             v_after = diff.package.version
         if isinstance(diff, Removal):
             op = '-'
-            name = diff.package.name
+            name = diff.package.name_with_group()
             v_before = diff.package.version
         if isinstance(diff, Change):
             arrow = '->'
-            name = diff.before.name
+            name = diff.before.name_with_group()
             v_before = diff.before.version
             v_after = diff.after.version
 
