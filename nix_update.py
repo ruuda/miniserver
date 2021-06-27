@@ -9,35 +9,60 @@ the changes in the commit message.
 
 Usage:
 
-  nix_update.py [<owner> [<repo> [<branch>]]]
+  nix_update.py [<owner> [<repo> [<branch> | <commit-hash>]]]
 
 Defaults to the NixOS/nixpkgs repository and the nixos-unstable branch.
 """
  
 import json
 import os
+import re
 import subprocess
 import sys
 import textwrap
 import urllib.request
 import uuid
 
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union
 
 from nix_store import get_build_requisites, get_runtime_requisites, run
 from nix_diff import Addition, Change, Diff, Removal, diff, format_difflist
 
+class Branch(NamedTuple):
+    name: str
+    # Sha of the commit that the branch currently points to.
+    head: str
 
-def get_latest_revision(owner: str, repo: str, branch: str) -> str:
+
+class Commit(NamedTuple):
+    # Sha of the commit itself.
+    head: str
+
+
+def is_commit_hash(ref: str) -> bool:
+    return re.fullmatch('[0-9a-f]{40}', ref) is not None
+
+
+def get_branch_head(owner: str, repo: str, branch: str) -> Branch:
     """
-    Return the current HEAD commit hash of the given branch.
-    This queries the GitHub API.
+    Return the current HEAD commit hash of the given branch. This queries the
+    GitHub API.
     """
     url = f'https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{branch}'
     response = urllib.request.urlopen(url)
     body = json.load(response)
     sha: str = body['object']['sha']
-    return sha
+    return Branch(branch, sha)
+
+
+def get_latest_revision(owner: str, repo: str, branch_or_sha: str) -> Union[Branch, Commit]:
+    """
+    Return the HEAD commit of the branch, or the commit itself if it was provided.
+    """
+    if is_commit_hash(branch_or_sha):
+        return Commit(branch_or_sha)
+    else:
+        return get_branch_head(owner, repo, branch_or_sha)
 
 
 def prefetch_url(url: str) -> str:
@@ -71,7 +96,7 @@ class Diffs(NamedTuple):
         return len(self.build) + len(self.runtime)
 
 
-def try_update_nixpkgs(owner: str, repo: str, branch: str) -> Diffs:
+def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -> Diffs:
     """
     Replace nixpkgs-pinned.nix with a newer version that fetches the latest
     commit in the given channel, and build default.nix. If that produces any
@@ -86,9 +111,12 @@ def try_update_nixpkgs(owner: str, repo: str, branch: str) -> Diffs:
 
     os.rename('nixpkgs-pinned.nix', 'nixpkgs-pinned.nix.bak')
 
-    print('[2/3] Fetching latest Nixpkgs ...')
-    commit_hash = get_latest_revision(owner, repo, branch)
-    pinned_expr = format_fetch_nixpkgs_tarball(owner, repo, commit_hash)
+    if isinstance(revision, Branch):
+        print(f'[2/3] Fetching latest commit in {owner}/{repo} {revision.name} ...')
+    else:
+        print(f'[2/3] Fetching {owner}/{repo} {revision.head} ...')
+
+    pinned_expr = format_fetch_nixpkgs_tarball(owner, repo, revision.head)
     with open('nixpkgs-pinned.nix', 'w', encoding='utf-8') as f:
         f.write(pinned_expr)
 
@@ -191,19 +219,29 @@ def summarize(diffs: Diffs) -> Optional[str]:
     return None
 
 
-def commit_nixpkgs_pinned(owner: str, repo: str, branch: str, diffs: Diffs) -> None:
+def commit_nixpkgs_pinned(
+    owner: str,
+    repo: str,
+    revision: Union[Branch, Commit],
+    diffs: Diffs,
+) -> None:
     """
     Commit nixpkgs-pinned.nix, and include the diff in the message.
     """
     run('git', 'add', 'nixpkgs-pinned.nix')
 
-    body_lines = [
-        *textwrap.wrap(
+    if isinstance(revision, Branch):
+        message = (
             'This updates the pinned Nixpkgs snapshot to the latest commit '
-            f'in the {branch} branch of {owner}/{repo}.',
-            width=72,
-        ),
-    ]
+            f'in the {revision.name} branch of {owner}/{repo}.'
+        )
+    else:
+        message = (
+            f'This updates the pinned Nixpkgs snapshot to commit '
+            f'{revision.head} of {owner}/{repo}.'
+        )
+
+    body_lines = [*textwrap.wrap(message, width=72)]
 
     if len(diffs.runtime) > 0:
         body_lines += [
@@ -228,19 +266,27 @@ def commit_nixpkgs_pinned(owner: str, repo: str, branch: str, diffs: Diffs) -> N
 
     # If we commit the new file, then we no longer need the backup.
     os.remove('nixpkgs-pinned.nix.bak')
-    print(f'Committed upgrade to latest commit in {owner}/{repo} {branch}')
+
+    if isinstance(revision, Branch):
+        print(f'Committed upgrade to latest commit in {owner}/{repo} {revision.name}')
+    else:
+        print(f'Committed upgrade to {owner}/{repo} {revision.head}')
 
 
-def main(owner: str, repo: str, branch: str) -> None:
+def main(owner: str, repo: str, branch_or_sha: str) -> None:
     """
     Update to the latest commit in the given branch (called channel for Nixpkgs),
     and commit that, if newer versions of a dependency are available.
     """
-    diffs = try_update_nixpkgs(owner, repo, branch)
+    revision = get_latest_revision(owner, repo, branch_or_sha)
+    diffs = try_update_nixpkgs(owner, repo, revision)
     if len(diffs) > 0:
-        commit_nixpkgs_pinned(owner, repo, branch, diffs)
+        commit_nixpkgs_pinned(owner, repo, revision, diffs)
     else:
-        print(f'Latest commit in {branch} channel has no interesting changes.')
+        if isinstance(revision, Branch):
+            print(f'Latest commit in {revision.name} branch has no interesting changes.')
+        else:
+            print(f'Commit {revision.head} has no interesting changes.')
 
 
 def getarg(n: int, default: str) -> str:
@@ -251,5 +297,5 @@ if __name__ == '__main__':
     main(
         owner=getarg(1, 'nixos'),
         repo=getarg(2, 'nixpkgs'),
-        branch=getarg(3, 'nixos-unstable'),
+        branch_or_sha=getarg(3, 'nixos-unstable'),
     )
