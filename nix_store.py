@@ -25,6 +25,14 @@ class Package(NamedTuple):
     def __str__(self) -> str:
         return self.name + (f'-{self.version}' if self.version != '' else '')
 
+    def __lt__(self, other):
+        # Overload the comparison operator, to give packages where group=None
+        # an ordering with respect to pacakges that do have a group. Without
+        # this, sorting a list of packages can fail with a TypeError.
+        lhs = (self.name, self.version, self.group or '')
+        rhs = (other.name, other.version, other.group or '')
+        return lhs < rhs
+
     def name_with_group(self) -> str:
         """
         If the package is part of a group, return the name prefixed by the group
@@ -53,6 +61,8 @@ class Package(NamedTuple):
         # Perl. I believe it also applies to Python, but I can add it when that
         # happens.
         if parts[0].startswith('perl5'):
+            return Package(name=parts[1], version=self.version, group=parts[0])
+        if parts[0].startswith('ruby2.'):
             return Package(name=parts[1], version=self.version, group=parts[0])
 
         return self
