@@ -13,7 +13,6 @@
   (import ./nixpkgs-pinned.nix) {}
 }:
 
-with pkgs;
 let
   # NixOS ships multiple versions of LibreSSL at the same time, and the default
   # one is not always the latest one. However, if we pick one explicitly, we
@@ -25,7 +24,7 @@ let
     libressl = libressl;
   };
 
-  lightNginx = nginxMainline.override {
+  lightNginx = pkgs.nginxMainline.override {
     # Remove dependency on libgd; It brings in a lot of transitive dependencies
     # that we don't need (fontconfig, image codecs, etc.). Also disable other
     # unnecessary dependencies.
@@ -39,7 +38,7 @@ let
     openssl = libressl;
   };
 
-  ngxBrotli = fetchFromGitHub {
+  ngxBrotli = pkgs.fetchFromGitHub {
     owner = "google";
     repo = "ngx_brotli";
     sha256 = "04yx1n0wi3l2x37jd1ynl9951qxkn8xp42yv0mfp1qz9svips81n";
@@ -47,7 +46,7 @@ let
     fetchSubmodules = true;
   };
 
-  defaultNginxConfig = writeText "nginx.conf" ''
+  defaultNginxConfig = pkgs.writeText "nginx.conf" ''
     # Don't daemonize. This makes it easier to run under systemd, especially
     # with RootImage=, as there are no pidfiles to juggle around, and no
     # directories that we need to create or mount for that. It also simplifies
@@ -129,7 +128,7 @@ let
   # verbatim, with the path inside the $out directory. So these we symlink
   # directly to the store, not to the copies in $out. So in the resulting image,
   # those links will point to the right places.
-  imageDir = stdenv.mkDerivation {
+  imageDir = pkgs.stdenv.mkDerivation {
     name = "miniserver-filesystem";
     buildInputs = [ customNginx acme-client ];
     buildCommand = ''
@@ -156,7 +155,7 @@ let
       ln -s /usr/bin $out/bin
       ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
       ln -s ${acme-client}/bin/acme-client $out/usr/bin/acme-client
-      closureInfo=${closureInfo { rootPaths = [ customNginx acme-client ]; }}
+      closureInfo=${pkgs.closureInfo { rootPaths = [ customNginx acme-client ]; }}
       for file in $(cat $closureInfo/store-paths); do
         echo "copying $file"
         cp --archive $file $out/nix/store
@@ -180,18 +179,21 @@ let
       chmod --recursive -w .
 
       # Delete some of the heavier but oncommon gconv shared objects.
+      # We only need UTF-8.
       cd $out${pkgs.glibc}/lib/gconv
       chmod +w .
       rm IBM*.so EBCDIC*.so *JIS*.so
-      rm {libCNS,BIG5HKSCS,GB18030,CP932,GBK,BIG5,EUC-JP-MS,UHC,libGB,GBBIG5}.so
+      rm {libCNS,BIG5HKSCS,GB18030,GBK,BIG5,UHC,libGB,GBBIG5}.so
+      rm {libISOIR165,libKSC,ISO646,UTF-7,DEC-MCS}.so
+      rm {ISO,CP,EUC,HP,MAC,INIS,GREEK,KOI}*.so
       chmod -w .
     '';
   };
 in
-  stdenv.mkDerivation {
+  pkgs.stdenv.mkDerivation {
     name = "miniserver.img";
 
-    nativeBuildInputs = [ squashfsTools ];
+    nativeBuildInputs = [ pkgs.squashfsTools ];
     buildInputs = [ imageDir ];
 
     buildCommand =
