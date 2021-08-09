@@ -259,7 +259,11 @@ def commit_nixpkgs_pinned(
             *format_difflist(diffs.build),
         ]
 
-    subject = summarize(diffs) or f'Update to latest commit in {owner}/{repo} {branch}'
+    if isinstance(revision, Branch):
+        subject = summarize(diffs) or f'Update to latest commit in {owner}/{repo} {revision.name}'
+    else:
+        subject = summarize(diffs) or f'Update to pinned commit in {owner}/{repo}'
+
     body = '\n'.join(body_lines)
     message = f'{subject}\n\n{body}\n'
     subprocess.run(['git', 'commit', '--message', message])
