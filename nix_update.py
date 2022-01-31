@@ -26,6 +26,7 @@ import uuid
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union
 
 from nix_store import get_build_requisites, get_runtime_requisites, run
+from nix_store import NIX_BIN, ensure_pinned_nix_version
 from nix_diff import Addition, Change, Diff, Removal, diff, format_difflist
 
 class Branch(NamedTuple):
@@ -69,7 +70,12 @@ def prefetch_url(url: str) -> str:
     """
     Run nix-prefecth-url with unpack and return the sha256.
     """
-    return run('nix-prefetch-url', '--unpack', '--type', 'sha256', url).rstrip('\n')
+    return run(
+        f'{NIX_BIN}/nix-prefetch-url',
+        '--unpack',
+        '--type', 'sha256',
+        url,
+    ).rstrip('\n')
 
 
 def format_fetch_nixpkgs_tarball(owner: str, repo: str, commit_hash: str) -> str:
@@ -107,7 +113,7 @@ def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -
     after_path = f'{tmp_path}-after'
 
     print('[1/3] Building before ...')
-    subprocess.run(['nix', 'build', '--out-link', before_path])
+    subprocess.run([f'{NIX_BIN}/nix', 'build', '--out-link', before_path])
 
     os.rename('nixpkgs-pinned.nix', 'nixpkgs-pinned.nix.bak')
 
@@ -121,7 +127,7 @@ def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -
         f.write(pinned_expr)
 
     print('[3/3] Building after ...')
-    subprocess.run(['nix', 'build', '--out-link', after_path])
+    subprocess.run([f'{NIX_BIN}/nix', 'build', '--out-link', after_path])
 
     befores_build = get_build_requisites(before_path)
     befores_runtime = get_runtime_requisites(before_path)
@@ -282,6 +288,7 @@ def main(owner: str, repo: str, branch_or_sha: str) -> None:
     Update to the latest commit in the given branch (called channel for Nixpkgs),
     and commit that, if newer versions of a dependency are available.
     """
+    ensure_pinned_nix_version()
     revision = get_latest_revision(owner, repo, branch_or_sha)
     diffs = try_update_nixpkgs(owner, repo, revision)
     if len(diffs) > 0:
