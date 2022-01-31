@@ -31,18 +31,19 @@ let
     gd = null;
     withStream = false;
     withMail = false;
+    modules = [];
 
     # Build Nginx against LibreSSL, rather than OpenSSL. This reduces the size
     # of the image, as we don't have to include both OpenSSL and LibreSSL. But
     # more importantly, I trust LibreSSL more than I trust OpenSSL.
-    openssl = libressl;
+    openssl_3_0 = libressl;
   };
 
   ngxBrotli = pkgs.fetchFromGitHub {
     owner = "google";
     repo = "ngx_brotli";
-    sha256 = "04yx1n0wi3l2x37jd1ynl9951qxkn8xp42yv0mfp1qz9svips81n";
-    rev = "bfd2885b2da4d763fed18f49216bb935223cd34b";
+    sha256 = "sha256-lu3CxjcNT4rtbm0V27WLRyu1SeWGFR9tWhjwu5fgehA=";
+    rev = "9aec15e2aa6feea2113119ba06460af70ab3ea62";
     fetchSubmodules = true;
   };
 
@@ -189,8 +190,8 @@ let
       chmod -w .
     '';
   };
-in
-  pkgs.stdenv.mkDerivation {
+
+  image = pkgs.stdenv.mkDerivation {
     name = "miniserver.img";
 
     nativeBuildInputs = [ pkgs.squashfsTools ];
@@ -218,4 +219,7 @@ in
           -noD               \
           -b 1048576         \
       '';
-  }
+  };
+
+in
+  image
