@@ -188,6 +188,13 @@ let
       rm {libISOIR165,libKSC,ISO646,UTF-7,DEC-MCS}.so
       rm {ISO,CP,EUC,HP,MAC,INIS,GREEK,KOI}*.so
       chmod -w .
+
+      # Also for libidn2, we don't need those locales, we are only running
+      # Nginx.
+      cd $out${pkgs.libidn2.out}/share/locale
+      chmod --recursive +w .
+      rm -r *
+      chmod -w .
     '';
   };
 
