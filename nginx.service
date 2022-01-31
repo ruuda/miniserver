@@ -10,7 +10,7 @@ ExecStartPre=/usr/bin/nginx -t
 ExecStart=/usr/bin/nginx
 PrivateTmp=true
 User=nginx
-Group=www
+Group=nginx
 
 # When stopping the unit, send SIGQUIT to the main process (which causes Nginx
 # to shut down gracefully), and don't send anything to other processes. If the
@@ -18,7 +18,7 @@ Group=www
 KillMode=mixed
 KillSignal=SIGQUIT
 
-RootImage=/var/lib/images/miniserver/latest
+RootImage=/var/lib/miniserver/current
 MountAPIVFS=true
 # TODO: Why does PrivateDevices cause a file not found error? It's a systemd
 # error, so probably some path does not exist inside the container?
