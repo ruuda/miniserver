@@ -18,7 +18,7 @@ Group=nginx
 KillMode=mixed
 KillSignal=SIGQUIT
 
-RootImage=/var/lib/miniserver/current
+RootImage={{ROOT_IMAGE}}
 MountAPIVFS=true
 # TODO: Why does PrivateDevices cause a file not found error? It's a systemd
 # error, so probably some path does not exist inside the container?

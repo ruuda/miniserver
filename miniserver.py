@@ -14,19 +14,38 @@ ARGUMENTS
 """
 
 import os
+import shutil
 import subprocess
 import sys
 import time
 import uuid
 
+from datetime import datetime, timezone
 from contextlib import contextmanager
-from typing import Iterator
+from typing import Dict, Iterator
 
 from nix_store import NIX_BIN, ensure_pinned_nix_version, run
 
 def get_current_image_path() -> str:
     ensure_pinned_nix_version()
     return run(f'{NIX_BIN}/nix', 'path-info').rstrip('\n')
+
+
+def copy_replace_file(
+    src_fname: str,
+    dst_fname: str,
+    replaces: Dict[str, str],
+) -> None:
+    """
+    Copy a text file from src to dst, replacing some strings while doing so.
+    A rudimentary templating engine, if you like.
+    """
+    with open(src_fname, 'r', encoding='utf-8') as src:
+        with open(dst_fname, 'w', encoding='utf-8') as dst:
+            for line in src:
+                for needle, replacement in replaces.items():
+                    line = line.replace(needle, replacement)
+                dst.write(line)
 
 
 @contextmanager
@@ -78,8 +97,52 @@ def main() -> None:
 
     host = args[0]
 
+    release_path = get_current_image_path()
+    release_name = os.path.basename(release_path).split('-')[0]
+    print('Deploying', release_path, '...')
+
     with sshfs(host) as tmp_path:
-        print(tmp_path)
+        target_dir = f'{tmp_path}/store/{release_name}'
+        now = datetime.now(timezone.utc)
+
+        os.makedirs(target_dir, exist_ok=True)
+        shutil.copyfile(release_path, f'{target_dir}/miniserver.img')
+        copy_replace_file(
+            'nginx.service',
+            f'{target_dir}/nginx.service',
+            {'{{ROOT_IMAGE}}': f'/var/lib/miniserver/store/{release_name}/miniserver.img'},
+        )
+        copy_replace_file(
+            'acme-client.service',
+            f'{target_dir}/acme-client.service',
+            {'{{ROOT_IMAGE}}': f'/var/lib/miniserver/store/{release_name}/miniserver.img'},
+        )
+
+        # Record when we deployed this version.
+        with open(f'{tmp_path}/deploy.log', 'a', encoding='utf-8') as deploylog:
+            deploylog.write(f'{now.isoformat()} {release_name}\n')
+
+        try:
+            before_link = os.readlink(f'{tmp_path}/current')
+            if before_link == f'store/{release_name}':
+                print('Re-deploying, not updating "previous" link.')
+                os.remove(f'{tmp_path}/current')
+            else:
+                print('Linked "previous" -> "{before_link}".')
+                os.replace(f'{tmp_path}/current', f'{tmp_path}/previous')
+
+        except FileNotFoundError:
+            print('No current deployment found, not creating a "previous" link.')
+            pass
+
+        os.symlink(
+            src=f'store/{release_name}',
+            dst=f'{tmp_path}/current',
+            target_is_directory=True,
+        )
+        print(f'Linked "current" -> "store/{release_name}".')
+
+        # TODO: Delete old releases.
 
 
 if __name__ == '__main__':
