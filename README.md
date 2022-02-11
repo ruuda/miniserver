@@ -23,8 +23,8 @@ Planned features:
 Building of the image is automated using [Nix][nix], a purely functional
 package manager:
 
-    nix build --out-link miniserver.img
-    systemd-nspawn --image miniserver.img --ephemeral -- /usr/bin/nginx -V
+    nix build --out-link result
+    systemd-nspawn --image result/miniserver.img --ephemeral -- /usr/bin/nginx -V
 
 The build involves the following:
 
