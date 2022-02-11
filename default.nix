@@ -232,19 +232,14 @@ let
 in
   pkgs.stdenv.mkDerivation {
     name = "miniserver";
-
     nativeBuildInputs = [ pkgs.cryptsetup pkgs.python3 ];
-    buildInputs = [ ];
-
     buildCommand =
       ''
         mkdir -p $out
         cp ${image} $out/miniserver.img
-        uuid=$(python3 ${./deterministic_uuid.py} uuid $out/miniserver.img)
-        salt=$(python3 ${./deterministic_uuid.py} salt $out/miniserver.img)
         veritysetup format \
-          --uuid=$uuid \
-          --salt=$salt \
+          --uuid=$(python3 ${./deterministic_uuid.py} uuid $out/miniserver.img) \
+          --salt=$(python3 ${./deterministic_uuid.py} salt $out/miniserver.img) \
           --root-hash-file=$out/miniserver.img.roothash \
           $out/miniserver.img $out/miniserver.img.verity
       '';
