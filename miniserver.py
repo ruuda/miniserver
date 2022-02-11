@@ -153,6 +153,14 @@ def main() -> None:
     with sshfs(host) as tmp_path:
         deploy_image(release_name, release_path, tmp_path)
 
+        print('Restarting nginx ...')
+        subprocess.run([
+            'ssh', host,
+            'sudo systemctl daemon-reload && '
+            'sudo systemctl restart nginx && '
+            'sudo env SYSTEMD_COLORS=256 systemctl status nginx',
+        ])
+
 
 if __name__ == '__main__':
     main()
