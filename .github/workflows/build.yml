@@ -17,15 +17,15 @@ jobs:
         run: "sudo apt install systemd-container"
 
       - name: "Build"
-        run: "nix build --out-link miniserver.img"
+        run: "nix build --out-link out"
 
       - name: "Print reproducibility metadata"
-        run: "sha256sum miniserver.img"
+        run: "sha256sum out/*"
 
       - name: "Dry-run Nginx"
-        run: "sudo systemd-nspawn --image miniserver.img --ephemeral -- /usr/bin/nginx -V"
+        run: "sudo systemd-nspawn --image out/miniserver.img --ephemeral -- /usr/bin/nginx -V"
 
       - uses: "actions/upload-artifact@v2"
         with:
           name: "miniserver.img"
-          path: "miniserver.img"
+          path: "out/miniserver.img"
