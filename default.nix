@@ -201,7 +201,7 @@ let
   image = pkgs.stdenv.mkDerivation {
     name = "miniserver.img";
 
-    nativeBuildInputs = [ pkgs.squashfsTools ];
+    nativeBuildInputs = [ pkgs.squashfsTools pkgs.cryptsetup ];
     buildInputs = [ imageDir ];
 
     buildCommand =
@@ -228,5 +228,20 @@ let
       '';
   };
 
+
 in
-  image
+  pkgs.stdenv.mkDerivation {
+    name = "miniserver";
+
+    nativeBuildInputs = [ pkgs.cryptsetup pkgs.python3 ];
+    buildInputs = [ ];
+
+    buildCommand =
+      ''
+        mkdir -p $out
+        cp ${image} $out/miniserver.img
+        uuid=$(python3 ${./deterministic_uuid.py} uuid $out/miniserver.img)
+        salt=$(python3 ${./deterministic_uuid.py} salt $out/miniserver.img)
+        veritysetup format --uuid=$uuid --salt=$salt $out/miniserver.img $out/miniserver.img.verity
+      '';
+  }

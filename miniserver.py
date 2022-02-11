@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2021 Ruud van Asseldonk
+# Copyright 2022 Ruud van Asseldonk
 
 """
 Miniserver -- deploy a self-contained nginx and acme-client image.
