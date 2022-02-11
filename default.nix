@@ -242,6 +242,10 @@ in
         cp ${image} $out/miniserver.img
         uuid=$(python3 ${./deterministic_uuid.py} uuid $out/miniserver.img)
         salt=$(python3 ${./deterministic_uuid.py} salt $out/miniserver.img)
-        veritysetup format --uuid=$uuid --salt=$salt $out/miniserver.img $out/miniserver.img.verity
+        veritysetup format \
+          --uuid=$uuid \
+          --salt=$salt \
+          --root-hash-file=$out/miniserver.img.roothash \
+          $out/miniserver.img $out/miniserver.img.verity
       '';
   }

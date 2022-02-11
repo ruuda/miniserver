@@ -15,7 +15,11 @@ PrivateTmp=true
 User=acme-client
 Group=www
 
-RootImage=/var/lib/images/miniserver/latest
+# The settings below are substituted at deployment time by the deploy script.
+RootImage={{ROOT_IMAGE}}
+RootVerity={{ROOT_IMAGE}}.verity
+RootHash={{ROOT_HASH}}
+
 MountAPIVFS=true
 
 # We take acme-client with its default configuration, which has seccomp support

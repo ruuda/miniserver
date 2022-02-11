@@ -27,7 +27,7 @@ from typing import Dict, Iterator
 from nix_store import NIX_BIN, ensure_pinned_nix_version, run
 
 
-def get_current_image_path() -> str:
+def get_current_release_path() -> str:
     ensure_pinned_nix_version()
     return run(f'{NIX_BIN}/nix', 'path-info').rstrip('\n')
 
@@ -87,16 +87,26 @@ def deploy_image(
     now = datetime.now(timezone.utc)
 
     os.makedirs(target_dir, exist_ok=True)
-    shutil.copyfile(release_path, f'{target_dir}/miniserver.img')
+    shutil.copyfile(f'{release_path}/miniserver.img', f'{target_dir}/miniserver.img')
+    shutil.copyfile(f'{release_path}/miniserver.img.verity', f'{target_dir}/miniserver.img.verity')
+
+    roothash = open(f'{release_path}/miniserver.img.roothash', 'r', encoding='ascii').readline()
+
     copy_replace_file(
         'nginx.service',
         f'{target_dir}/nginx.service',
-        {'{{ROOT_IMAGE}}': f'/var/lib/miniserver/store/{release_name}/miniserver.img'},
+        {
+            '{{ROOT_IMAGE}}': f'/var/lib/miniserver/store/{release_name}/miniserver.img',
+            '{{ROOT_HASH}}': roothash,
+        },
     )
     copy_replace_file(
         'acme-client.service',
         f'{target_dir}/acme-client.service',
-        {'{{ROOT_IMAGE}}': f'/var/lib/miniserver/store/{release_name}/miniserver.img'},
+        {
+            '{{ROOT_IMAGE}}': f'/var/lib/miniserver/store/{release_name}/miniserver.img',
+            '{{ROOT_HASH}}': roothash,
+        },
     )
 
     # Record when we deployed this version.
@@ -146,7 +156,7 @@ def main() -> None:
 
     host = args[0]
 
-    release_path = get_current_image_path()
+    release_path = get_current_release_path()
     release_name = os.path.basename(release_path).split('-')[0]
     print('Deploying', release_path, '...')
 

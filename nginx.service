@@ -18,7 +18,11 @@ Group=nginx
 KillMode=mixed
 KillSignal=SIGQUIT
 
+# The settings below are substituted at deployment time by the deploy script.
 RootImage={{ROOT_IMAGE}}
+RootVerity={{ROOT_IMAGE}}.verity
+RootHash={{ROOT_HASH}}
+
 MountAPIVFS=true
 # TODO: Why does PrivateDevices cause a file not found error? It's a systemd
 # error, so probably some path does not exist inside the container?
