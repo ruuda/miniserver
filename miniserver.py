@@ -128,7 +128,7 @@ def main() -> None:
                 print('Re-deploying, not updating "previous" link.')
                 os.remove(f'{tmp_path}/current')
             else:
-                print('Linked "previous" -> "{before_link}".')
+                print(f'Linked "previous" -> "{before_link}".')
                 os.replace(f'{tmp_path}/current', f'{tmp_path}/previous')
 
         except FileNotFoundError:
