@@ -17,7 +17,9 @@ jobs:
         run: "sudo apt install systemd-container"
 
       - name: "Build"
-        run: "nix build --out-link out"
+        # Also cp the result out of the out directory, because the
+        # upload-artifact action apparently does not like symlinks.
+        run: "nix build --out-link out\ncp out/miniserver.img ."
 
       - name: "Print reproducibility metadata"
         run: "sha256sum out/*"
@@ -28,4 +30,4 @@ jobs:
       - uses: "actions/upload-artifact@v2"
         with:
           name: "miniserver.img"
-          path: "out/miniserver.img"
+          path: "miniserver.img"
