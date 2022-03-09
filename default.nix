@@ -174,19 +174,17 @@ let
       rm i18n/locales/*
       mv i18n/locales_C i18n/locales/C
 
-      # Delete some of the heavier but uncommon charmaps.
-      rm i18n/charmaps/{GB18030,EUC-TW,CP949,JOHAB,GBK,BIG5-HKSCS,EUC-JP-MS}.gz
+      # Delete all the charmaps, they consume a lot of space, and we do not use
+      # them.
+      rm i18n/charmaps/*.gz
 
       chmod --recursive -w .
 
-      # Delete some of the heavier but oncommon gconv shared objects.
-      # We only need UTF-8.
+      # Delete the gconv shared objects related to locales, the programs we run
+      # do not use iconv.
       cd $out${pkgs.glibc}/lib/gconv
       chmod +w .
-      rm IBM*.so EBCDIC*.so *JIS*.so
-      rm {libCNS,BIG5HKSCS,GB18030,GBK,BIG5,UHC,libGB,GBBIG5}.so
-      rm {libISOIR165,libKSC,ISO646,UTF-7,DEC-MCS}.so
-      rm {ISO,CP,EUC,HP,MAC,INIS,GREEK,KOI}*.so
+      rm *.so
       chmod -w .
 
       # Also for libidn2, we don't need those locales, we are only running
