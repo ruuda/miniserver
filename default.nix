@@ -42,8 +42,8 @@ let
   ngxBrotli = pkgs.fetchFromGitHub {
     owner = "google";
     repo = "ngx_brotli";
-    sha256 = "sha256-lu3CxjcNT4rtbm0V27WLRyu1SeWGFR9tWhjwu5fgehA=";
-    rev = "9aec15e2aa6feea2113119ba06460af70ab3ea62";
+    sha256 = "sha256-ks5Ae9gCscEX8TkqK3LGiRl2twUt+chGfkrRhMXS7uc=";
+    rev = "6e975bcb015f62e1f303054897783355e2a877dc";
     fetchSubmodules = true;
   };
 
