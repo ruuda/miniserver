@@ -7,6 +7,7 @@ Miniserver -- deploy a self-contained nginx and acme-client image.
 USAGE
 
     miniserver.py deploy <host>
+    miniserver.py status <host>
 
 ARGUMENTS
 
@@ -144,7 +145,7 @@ def main() -> None:
         sys.exit(1)
 
     cmd, args = args[0], args[1:]
-    if cmd != 'deploy':
+    if cmd not in ('deploy', 'status'):
         print('Invalid command:', cmd)
         print(__doc__)
         sys.exit(1)
@@ -158,18 +159,37 @@ def main() -> None:
 
     release_path = get_current_release_path()
     release_name = os.path.basename(release_path).split('-')[0]
-    print('Deploying', release_path, '...')
 
-    with sshfs(host) as tmp_path:
-        deploy_image(release_name, release_path, tmp_path)
+    if cmd == 'deploy':
+        print('Deploying', release_path, '...')
 
-        print('Restarting nginx ...')
-        subprocess.run([
-            'ssh', host,
-            'sudo systemctl daemon-reload && '
-            'sudo systemctl restart nginx && '
-            'sudo env SYSTEMD_COLORS=256 systemctl status nginx',
-        ])
+        with sshfs(host) as tmp_path:
+            deploy_image(release_name, release_path, tmp_path)
+
+            print('Restarting nginx ...')
+            subprocess.run([
+                'ssh', host,
+                'sudo systemctl daemon-reload && '
+                'sudo systemctl restart nginx && '
+                'sudo env SYSTEMD_COLORS=256 systemctl status nginx',
+            ])
+
+    if cmd == 'status':
+        with sshfs(host) as tmp_path:
+            current_link = os.readlink(f'{tmp_path}/current')
+            print(f'Current local version:     {release_name}')
+            print(f'Current remote deployment: {current_link.removeprefix("store/")}')
+            print('Latest deployment log entries:')
+            with open(f'{tmp_path}/deploy.log', 'r', encoding='utf-8') as f:
+                for line in f.readlines()[-5:]:
+                    print('  ', line, end='')
+
+            print()
+            subprocess.run([
+                'ssh', host,
+                'sudo env SYSTEMD_COLORS=256 systemctl status nginx',
+            ])
+
 
 
 if __name__ == '__main__':
