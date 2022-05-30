@@ -1,22 +1,16 @@
 # Miniserver
 
-[![Build Status][ci-img]][ci]
-
 Tools to build a minimal webserver, as a self-contained archive that contains
-Nginx and Acme-client, with configuration to run it under systemd on CoreOS
-Container Linux. A secure and simple way to host a static site.
+Nginx and Acme-client, with configuration to run it under systemd on
+[Flatcar Container Linux][flatcar] (formerly [CoreOS][coreos]).
+A secure and simple way to host a static site.
 
 Features:
 
  * A recent Nginx, with Brotli support.
  * Acme-client to refresh your Letsencrypt certificates.
  * Bit by bit reproducible.
-
-Planned features:
-
- * Systemd units to run both, using systemd's isolation features where it
-   makes sense, without the bloat of container runtimes.
- * Declarative configuration without moving parts.
+ * Packaged as a squashfs file system, runs using systemd's isolation.
 
 ## Building
 
@@ -39,51 +33,43 @@ The build involves the following:
 [nixpkgs]:    https://github.com/NixOS/nixpkgs
 [ngx-brotli]: https://github.com/google/ngx_brotli
 
-Installing Nix is a pretty invasive operation that creates a `/nix/store`
-directory in the root filesystem, and adds build users. If you don't want to do
-this to your development machine, you can run `./install-nix.sh` in a virtual
-machine, or in a container:
-
-    sudo machinectl pull-tar 'https://cloud-images.ubuntu.com/releases/16.04/release/ubuntu-16.04-server-cloudimg-amd64-root.tar.xz' xenial
-    sudo systemd-nspawn           \
-      --machine xenial            \
-      --capability CAP_NET_ADMIN  \
-      --bind-ro /etc/resolv.conf  \
-      --bind $PWD:/build          \
-      --chdir /build              \
-      /bin/bash -c "
-        source ./install-nix.sh
-        nix build
-        cp $(nix path-info) miniserver.img
-      "
-    sudo systemd-nspawn --image miniserver.img --ephemeral -- /usr/bin/nginx -V
-
-I needed to mount my host's `/etc/resolv.conf` inside the container to get
-networking to work. If you use `systemd-networkd`, networking might work out
-of the box.
-
 ## Deploying
 
-Steps for manual deployment to a CoreOS server. It is recommended to instead
-encode these steps in your Ignition config.
+This repository includes a simple deployment tool, `miniserver.py` for updating
+an existing installation. It will:
 
- * Copy `miniserver.img` to `/var/lib/images/miniserver/latest`. This path will
-   allow for automatic updates using [Tako][tako] later.
- * Copy `nginx.service` to `/etc/systemd/system/nginx.service`.
- * Create `/var/log/nginx` and `chown` it to `nobody:nobody`. This directory
-   will be mounted read-write inside the unit's chroot.
- * Create `/var/www` and put your static site in there. This directory will be
-   mounted read-only inside the unit's chroot.
+ * Create a `/var/lib/miniserver` on a target machine to hold deployed images.
+ * Copy the current image to the server over `sshfs` into a directory named
+   after the current version's Nix hash.
+ * Put systemd units `nginx.service` and `acme-client.service` next to the image.
+ * Symlink `/var/lib/miniserver/current` to the latest version.
+ * Daemon-reload `systemd` and restart `nginx.service`.
+
+Before the first deployment, perform the following initial setup.
+It is recommended to encode these steps in your Ignition config.
+
+ * Create a `www` system group.
+ * Create `nginx` and `acme-client` system users with their own group,
+   and also part of the `www` group.
+ * Create `/var/log/nginx` and `chown` it to `nginx:nginx`.
+   This directory will be mounted read-write inside the unit's chroot.
+ * Create `/var/www`, chown it to `$USER:www`, and put your static site in
+   there. This directory will be mounted read-only inside the unit's chroot.
  * Create `/etc/nginx/sites-enabled/` and put at least one Nginx configuration
-   file in there. Files in that directory will be loaded by the master config.
- * `systemctl start nginx`.
+   file in there. `/etc/nginx` will be mounted read-only inside the unit's
+   chroot. Files in `sites-enabled` will be loaded by the master config.
+
+Then to install or update:
+
+    ./miniserver.py deploy <hostname>
+
+You need to have built the image before it can be deployed.
 
 ## License
 
 The code in this repository is licensed under the
 [GNU General Public License][gplv3], version 3.
 
-[ci-img]: https://travis-ci.org/ruuda/miniserver.svg?branch=master
-[ci]:     https://travis-ci.org/ruuda/miniserver
-[tako]:   https://github.com/ruuda/tako
-[gplv3]:  https://www.gnu.org/licenses/gpl-3.0.html
+[flatcar]: https://www.flatcar.org/
+[coreos]:  https://www.redhat.com/en/technologies/cloud-computing/openshift/what-was-coreos
+[gplv3]:   https://www.gnu.org/licenses/gpl-3.0.html
