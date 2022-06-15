@@ -36,7 +36,7 @@ let
     # Build Nginx against LibreSSL, rather than OpenSSL. This reduces the size
     # of the image, as we don't have to include both OpenSSL and LibreSSL. But
     # more importantly, I trust LibreSSL more than I trust OpenSSL.
-    openssl_3_0 = libressl;
+    openssl = libressl;
   };
 
   ngxBrotli = pkgs.fetchFromGitHub {
