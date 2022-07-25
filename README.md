@@ -65,6 +65,17 @@ Then to install or update:
 
 You need to have built the image before it can be deployed.
 
+After the initial deployment, you also need to link the systemd units managed
+by `miniserver.py` into place on the server:
+
+    ln -s /var/lib/miniserver/current/nginx.service /etc/systemd/system/nginx.service
+    ln -s /var/lib/miniserver/current/acme-client.service /etc/systemd/system/acme-client.service
+    systemctl daemon-reload
+    systemctl enable nginx
+    systemctl start nginx
+
+Subsequent deployments will automatically restart `nginx.service`.
+
 ## License
 
 The code in this repository is licensed under the
