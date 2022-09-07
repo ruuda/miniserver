@@ -17,6 +17,9 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 # Nix 2.4 has breaking changes in its CLI interface, use Nix 2.3 instead.
 NIX_BIN = '/nix/store/9hkh1fx8z1frgbz2nawr0mnyvizrb8yk-nix-2.3.15/bin'
 
+# Although nix-prefetch-url was always broken, there is a newer 'nix flake
+# prefech' that we can use instead.
+NIX_211_BIN = '/nix/store/2fgi9kcgh7wabarghii6qxh9646y1r4y-nix-2.11.0/bin'
 
 def ensure_pinned_nix_version():
     if not os.path.isfile(f'{NIX_BIN}/nix'):
@@ -24,6 +27,12 @@ def ensure_pinned_nix_version():
         run('nix-store', '--realise', os.path.dirname(NIX_BIN))
     else:
         print('Already have Nix 2.3.15.')
+
+    if not os.path.isfile(f'{NIX_211_BIN}/nix'):
+        print('Getting Nix 2.11.0 ...')
+        run('nix-store', '--realise', os.path.dirname(NIX_211_BIN))
+    else:
+        print('Already have Nix 2.11.0.')
 
 
 class Package(NamedTuple):

@@ -26,7 +26,7 @@ import uuid
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union
 
 from nix_store import get_build_requisites, get_runtime_requisites, run
-from nix_store import NIX_BIN, ensure_pinned_nix_version
+from nix_store import NIX_BIN, NIX_211_BIN, ensure_pinned_nix_version
 from nix_diff import Addition, Change, Diff, Removal, diff, format_difflist
 
 class Branch(NamedTuple):
@@ -68,14 +68,19 @@ def get_latest_revision(owner: str, repo: str, branch_or_sha: str) -> Union[Bran
 
 def prefetch_url(url: str) -> str:
     """
-    Run nix-prefecth-url with unpack and return the sha256.
+    Prefetch a file into the Nix store and return its sha256.
     """
-    return run(
-        f'{NIX_BIN}/nix-prefetch-url',
-        '--unpack',
-        '--type', 'sha256',
+    result_raw = run(
+        f'{NIX_211_BIN}/nix',
+        '--extra-experimental-features', 'nix-command',
+        '--extra-experimental-features', 'flakes',
+        'flake',
+        'prefetch',
+        '--json',
         url,
-    ).rstrip('\n')
+    )
+    result = json.loads(result_raw)
+    return result["hash"]
 
 
 def format_fetch_nixpkgs_tarball(owner: str, repo: str, commit_hash: str) -> str:
