@@ -61,20 +61,19 @@ It is recommended to encode these steps in your Ignition config.
 
 Then to install or update:
 
+    ./miniserver.py install <hostname>
+
+You need to have built the image before it can be deployed. The `install`
+command will symlink `/etc/systemd/system/{nginx, acme-client}.service` to the
+ones in the installation directory, and enable and start the `nginx` unit. The
+installation command is idempotent, it is safe to run it multiple times. (Each
+time will create an entry in the deploy log, however.)
+
+After the initial installation, you can update with:
+
     ./miniserver.py deploy <hostname>
 
-You need to have built the image before it can be deployed.
-
-After the initial deployment, you also need to link the systemd units managed
-by `miniserver.py` into place on the server:
-
-    ln -s /var/lib/miniserver/current/nginx.service /etc/systemd/system/nginx.service
-    ln -s /var/lib/miniserver/current/acme-client.service /etc/systemd/system/acme-client.service
-    systemctl daemon-reload
-    systemctl enable nginx
-    systemctl start nginx
-
-Subsequent deployments will automatically restart `nginx.service`.
+This will restart `nginx.service` after uploading a new version.
 
 ## License
 

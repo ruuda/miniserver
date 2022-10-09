@@ -145,7 +145,7 @@ def main() -> None:
         sys.exit(1)
 
     cmd, args = args[0], args[1:]
-    if cmd not in ('deploy', 'status'):
+    if cmd not in ('deploy', 'status', 'install'):
         print('Invalid command:', cmd)
         print(__doc__)
         sys.exit(1)
@@ -190,6 +190,20 @@ def main() -> None:
                 'sudo env SYSTEMD_COLORS=256 systemctl status nginx',
             ])
 
+    if cmd == 'install':
+        print('Deploying', release_path, '...')
+        with sshfs(host) as tmp_path:
+            deploy_image(release_name, release_path, tmp_path)
+
+            print('Linking, enabling, and starting systemd units ...')
+            subprocess.run([
+                'ssh', host,
+                'sudo ln -fs /var/lib/miniserver/current/nginx.service /etc/systemd/system/nginx.service && '
+                'sudo ln -fs /var/lib/miniserver/current/acme-client.service /etc/systemd/system/acme-client.service && '
+                'sudo systemctl daemon-reload && '
+                'sudo systemctl enable --now nginx && '
+                'sudo env SYSTEMD_COLORS=256 systemctl status nginx',
+            ])
 
 
 if __name__ == '__main__':
