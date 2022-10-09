@@ -140,7 +140,7 @@ let
       # because systemd mounts a tmpfs there. /run is not needed by the systemd
       # unit, but it is required by systemd-nspawn, so we add it too.
       mkdir -p $out/dev
-      mkdir -p $out/etc/acme-client
+      mkdir -p $out/etc/acme
       mkdir -p $out/etc/nginx
       mkdir -p $out/nix/store
       mkdir -p $out/proc
@@ -153,6 +153,7 @@ let
       mkdir -p $out/var/log/nginx
       mkdir -p $out/var/tmp
       mkdir -p $out/var/www/acme
+      touch $out/etc/acme-client.conf
       ln -s /usr/bin $out/bin
       ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
       ln -s ${acme-client}/bin/acme-client $out/usr/bin/acme-client
