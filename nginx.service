@@ -6,7 +6,6 @@ Description=The NGINX HTTP and reverse proxy server
 After=network.target nss-lookup.target
 
 [Service]
-ExecReload=/usr/bin/kill -HUP $MAINPID
 ExecStartPre=/usr/bin/nginx -t
 ExecStart=/usr/bin/nginx
 PrivateTmp=true
