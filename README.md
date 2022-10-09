@@ -49,7 +49,7 @@ Before the first deployment, perform the following initial setup.
 It is recommended to encode these steps in your Ignition config.
 
  * Create a `www` system group.
- * Create `nginx` and `acme-client` system users with their own group,
+ * Create `nginx` and `acme` system users with their own group,
    and also part of the `www` group.
  * Create `/var/log/nginx` and `chown` it to `nginx:nginx`.
    This directory will be mounted read-write inside the unit's chroot.
@@ -58,6 +58,9 @@ It is recommended to encode these steps in your Ignition config.
  * Create `/etc/nginx/sites-enabled/` and put at least one Nginx configuration
    file in there. `/etc/nginx` will be mounted read-only inside the unit's
    chroot. Files in `sites-enabled` will be loaded by the master config.
+ * Create `/etc/acme` and chown it to `acme:www`.
+ * Put your acme-client config at `/etc/acme-client.conf` and chown it to
+   `acme:acme`.
 
 Then to install or update:
 
