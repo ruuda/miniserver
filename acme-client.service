@@ -6,14 +6,14 @@ Requires=network.target nss-lookup.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/acme-client -f /etc/acme-client/acme-client.conf %I
+ExecStart=/usr/bin/acme-client %I
 # TODO: Add a script to reload nginx here. The only hurdle is, the acme-client
 # user should not have permission to do that, so it can't run as that user.
 # Maybe I'll just periodically sighup nginx.
 # ExecStartPost=
 PrivateTmp=true
-User=acme-client
-Group=www
+User=acme
+Group=acme
 
 # The settings below are substituted at deployment time by the deploy script.
 RootImage={{ROOT_IMAGE}}
@@ -29,7 +29,6 @@ MountAPIVFS=true
 # [1]: https://github.com/kristapsdz/acme-client-portable/blob/
 #      e82c130dd942a74c50c1631042c1bc60fafe8bad/Linux-seccomp.md
 
-PrivateUsers=true
 MemoryDenyWriteExecute=true
 
 # Ensure that the process can never gain new priviliges through execve, and that
@@ -39,9 +38,6 @@ ProtectControlGroups=true
 ProtectKernelModules=true
 ProtectKernelTunables=true
 
-# TODO: Will need chroot capability?
-# AmbientCapabilities=
-
 # Note: Setting ProtectSystem= has no advantage, as the squashfs filesystem is
 # already read-only. Similarly, ProtectHome= is not useful because the paths it
 # protect do not exist in our filesystem.
@@ -50,5 +46,5 @@ ProtectKernelTunables=true
 # to the challenge will be written, it should be served by Nginx at
 # .well-known/acme-challenge.
 BindPaths=/var/www/acme
-BindPaths=/var/certificates
-BindReadOnlyPaths=/etc/acme-client
+BindPaths=/etc/acme
+BindReadOnlyPaths=/etc/acme-client.conf

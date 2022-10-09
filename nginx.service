@@ -28,9 +28,6 @@ MountAPIVFS=true
 # error, so probably some path does not exist inside the container?
 # PrivateDevices=true
 
-# TODO: Enabling PrivateUsers causes socket bind to fail because
-# CAP_NET_BIND_SERVICE is not propagated. Can something be done about it?
-# PrivateUsers=true
 MemoryDenyWriteExecute=true
 
 # Ensure that the process can never gain new priviliges through execve, and that
@@ -46,7 +43,6 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 # Note: Setting ProtectSystem= has no advantage, as the squashfs filesystem is
 # already read-only. Similarly, ProtectHome= is not useful because the paths it
 # protect do not exist in our filesystem.
-
 
 # Bind-mount /var/log/nginx and inside the chroot. There is LogsDirectory=,
 # which would make systemd take care of creation and permissions, but I never
