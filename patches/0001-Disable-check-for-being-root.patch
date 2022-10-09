@@ -1,0 +1,31 @@
+From 02f276c3379b618df7dfb7dcd904b2ed69214078 Mon Sep 17 00:00:00 2001
+From: Ruud van Asseldonk <dev@veniogames.com>
+Date: Sun, 9 Oct 2022 23:14:04 +0200
+Subject: [PATCH 1/2] Disable check for being root
+
+I want to run this on Linux as a non-root user. I expect it's not
+actually required that the user be root, I can just give it the right
+capabilities in case it needs any.
+---
+ usr.sbin/acme-client/main.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/usr.sbin/acme-client/main.c b/usr.sbin/acme-client/main.c
+index 073f917..c95ded1 100644
+--- a/usr.sbin/acme-client/main.c
++++ b/usr.sbin/acme-client/main.c
+@@ -84,11 +84,6 @@ main(int argc, char *argv[])
+ 			goto usage;
+ 		}
+ 
+-#if !ENABLE_TEST_BUILD
+-	if (getuid() != 0)
+-		errx(EXIT_FAILURE, "must be run as root");
+-#endif
+-
+ 	/* parse config file */
+ 	if ((conf = parse_config(conffile, popts)) == NULL)
+ 		return EXIT_FAILURE;
+-- 
+2.38.0
+

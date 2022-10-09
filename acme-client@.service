@@ -13,8 +13,8 @@ ExecStart=/usr/bin/acme-client -v %I
 # Maybe I'll just periodically sighup nginx.
 # ExecStartPost=
 PrivateTmp=true
-User=root
-Group=acme
+User=acme
+Group=www
 
 # The settings below are substituted at deployment time by the deploy script.
 RootImage={{ROOT_IMAGE}}

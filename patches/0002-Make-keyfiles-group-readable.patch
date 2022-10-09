@@ -1,0 +1,42 @@
+From f6aad74669bca951c41df9635c4e3f7eaeff89e3 Mon Sep 17 00:00:00 2001
+From: Ruud van Asseldonk <dev@veniogames.com>
+Date: Sun, 9 Oct 2022 23:17:32 +0200
+Subject: [PATCH 2/2] Make keyfiles group-readable
+
+I want to run acme-client as a different user than nginx, but they will
+both be members of the same group. That way, nginx should be able to
+read these files.
+---
+ usr.sbin/acme-client/acctproc.c | 2 +-
+ usr.sbin/acme-client/keyproc.c  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/usr.sbin/acme-client/acctproc.c b/usr.sbin/acme-client/acctproc.c
+index 8b4c057..879c170 100644
+--- a/usr.sbin/acme-client/acctproc.c
++++ b/usr.sbin/acme-client/acctproc.c
+@@ -546,7 +546,7 @@ acctproc(int netsock, const char *acctkey, enum keytype keytype)
+ 	 * Set our umask to be maximally restrictive.
+ 	 */
+ 
+-	prev = umask((S_IWUSR | S_IXUSR) | S_IRWXG | S_IRWXO);
++	prev = umask((S_IWUSR | S_IXUSR) | (S_IWGRP | S_IXGRP) | S_IRWXO);
+ 	if ((f = fopen(acctkey, "r")) == NULL && errno == ENOENT) {
+ 		f = fopen(acctkey, "wx");
+ 		newacct = 1;
+diff --git a/usr.sbin/acme-client/keyproc.c b/usr.sbin/acme-client/keyproc.c
+index d0da5ef..24364a9 100644
+--- a/usr.sbin/acme-client/keyproc.c
++++ b/usr.sbin/acme-client/keyproc.c
+@@ -96,7 +96,7 @@ keyproc(int netsock, const char *keyfile, const char **alts, size_t altsz,
+ 	 * Set our umask to be maximally restrictive.
+ 	 */
+ 
+-	prev = umask((S_IWUSR | S_IXUSR) | S_IRWXG | S_IRWXO);
++	prev = umask((S_IWUSR | S_IXUSR) | (S_IWGRP | S_IXGRP) | S_IRWXO);
+ 	if ((f = fopen(keyfile, "r")) == NULL && errno == ENOENT) {
+ 		f = fopen(keyfile, "wx");
+ 		newkey = 1;
+-- 
+2.38.0
+

@@ -20,9 +20,16 @@ let
   # Nixpkgs when it is outdated, or update here when needed.
   libressl = pkgs.libressl;
 
-  acme-client = pkgs.acme-client.override {
+  acme-client-libressl = pkgs.acme-client.override {
     libressl = libressl;
   };
+
+  acme-client = acme-client-libressl.overrideDerivation (oldAttrs: {
+    patches = [
+      ./patches/0001-Disable-check-for-being-root.patch
+      ./patches/0002-Make-keyfiles-group-readable.patch
+    ];
+  });
 
   lightNginx = pkgs.nginxMainline.override {
     # Remove dependency on libgd; It brings in a lot of transitive dependencies
