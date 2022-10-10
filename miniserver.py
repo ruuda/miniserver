@@ -2,7 +2,7 @@
 # Copyright 2022 Ruud van Asseldonk
 
 """
-Miniserver -- deploy a self-contained nginx and acme-client image.
+Miniserver -- deploy a self-contained nginx and lego image.
 
 USAGE
 
@@ -102,8 +102,8 @@ def deploy_image(
         },
     )
     copy_replace_file(
-        'acme-client@.service',
-        f'{target_dir}/acme-client@.service',
+        'lego.service',
+        f'{target_dir}/lego.service',
         {
             '{{ROOT_IMAGE}}': f'/var/lib/miniserver/store/{release_name}/miniserver.img',
             '{{ROOT_HASH}}': roothash,
@@ -199,7 +199,7 @@ def main() -> None:
             subprocess.run([
                 'ssh', host,
                 'sudo ln -fs /var/lib/miniserver/current/nginx.service /etc/systemd/system/nginx.service && '
-                'sudo ln -fs /var/lib/miniserver/current/acme-client@.service /etc/systemd/system/acme-client@.service && '
+                'sudo ln -fs /var/lib/miniserver/current/lego.service /etc/systemd/system/lego.service && '
                 'sudo systemctl daemon-reload && '
                 'sudo systemctl enable --now nginx && '
                 'sudo env SYSTEMD_COLORS=256 systemctl status nginx',

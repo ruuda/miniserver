@@ -20,21 +20,6 @@ let
   # Nixpkgs when it is outdated, or update here when needed.
   libressl = pkgs.libressl;
 
-  acme-client-libressl = pkgs.acme-client.override {
-    libressl = libressl;
-  };
-
-  acme-client = acme-client-libressl.overrideDerivation (oldAttrs: {
-    nativeBuildInputs = [
-      pkgs.pkg-config
-      pkgs.yacc
-    ];
-    patches = [
-      ./patches/0001-Disable-check-for-being-root.patch
-      ./patches/0002-Make-keyfiles-group-readable.patch
-    ];
-  });
-
   lightNginx = pkgs.nginxMainline.override {
     # Remove dependency on libgd; It brings in a lot of transitive dependencies
     # that we don't need (fontconfig, image codecs, etc.). Also disable other
@@ -142,7 +127,7 @@ let
   # those links will point to the right places.
   imageDir = pkgs.stdenv.mkDerivation {
     name = "miniserver-filesystem";
-    buildInputs = [ customNginx acme-client ];
+    buildInputs = [ customNginx pkgs.lego ];
     buildCommand = ''
       # Although we only need /nix/store and /usr/bin, we need to create the
       # other directories too so systemd can mount the API virtual filesystems
@@ -151,7 +136,6 @@ let
       # because systemd mounts a tmpfs there. /run is not needed by the systemd
       # unit, but it is required by systemd-nspawn, so we add it too.
       mkdir -p $out/dev
-      mkdir -p $out/etc/acme
       mkdir -p $out/etc/nginx
       mkdir -p $out/nix/store
       mkdir -p $out/proc
@@ -164,11 +148,11 @@ let
       mkdir -p $out/var/log/nginx
       mkdir -p $out/var/tmp
       mkdir -p $out/var/www/acme
-      touch $out/etc/acme-client.conf
+      touch $out/etc/lego.conf
       ln -s /usr/bin $out/bin
       ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
-      ln -s ${acme-client}/bin/acme-client $out/usr/bin/acme-client
-      closureInfo=${pkgs.closureInfo { rootPaths = [ customNginx acme-client ]; }}
+      ln -s ${pkgs.lego}/bin/lego $out/usr/bin/lego
+      closureInfo=${pkgs.closureInfo { rootPaths = [ customNginx pkgs.lego ]; }}
       for file in $(cat $closureInfo/store-paths); do
         echo "copying $file"
         cp --archive $file $out/nix/store

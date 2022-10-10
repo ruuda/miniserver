@@ -1,19 +1,33 @@
-# Miniserver acme-client unit.
+# Miniserver lego unit.
 
 [Unit]
-Description=Automatic Certificate Management Environment (ACME) client (%I)
+Description=Let’s Encrypt client and ACME library written in Go
 Requires=network.target nss-lookup.target
 
 [Service]
 Type=oneshot
-ExecStartPre=/usr/bin/acme-client -n %I
-ExecStart=/usr/bin/acme-client -vv %I
-# TODO: Add a script to reload nginx here. The only hurdle is, the acme-client
+EnvironmentFile=/etc/lego.conf
+ExecStart=/usr/bin/lego \
+  --server https://acme-staging-v02.api.letsencrypt.org/directory \
+  --http.webroot /var/www/acme \
+  --path /var/certificates \
+  --pem \
+  $LEGO_FLAGS
+
+# You'd set e.g. the following in /etc/lego.conf:
+# LEGO_FLAGS=\
+# --accept-tos \
+# --email webmaster@example.com \
+# --domains example.com \
+# --domains www.example.com \
+# renew
+
+# TODO: Add a script to reload nginx here. The only hurdle is, the lego
 # user should not have permission to do that, so it can't run as that user.
 # Maybe I'll just periodically sighup nginx.
 # ExecStartPost=
 PrivateTmp=true
-User=acme
+User=lego
 Group=www
 
 # The settings below are substituted at deployment time by the deploy script.
@@ -22,14 +36,6 @@ RootVerity={{ROOT_IMAGE}}.verity
 RootHash={{ROOT_HASH}}
 
 MountAPIVFS=true
-
-# We take acme-client with its default configuration, which has seccomp support
-# disabled. [1] Fortunately we can bring back a lot, albeit not at the same
-# granularity, using systemd's sandboxing features.
-#
-# [1]: https://github.com/kristapsdz/acme-client-portable/blob/
-#      e82c130dd942a74c50c1631042c1bc60fafe8bad/Linux-seccomp.md
-
 MemoryDenyWriteExecute=true
 
 # Ensure that the process can never gain new priviliges through execve, and that
@@ -47,5 +53,5 @@ ProtectKernelTunables=true
 # to the challenge will be written, it should be served by Nginx at
 # .well-known/acme-challenge.
 BindPaths=/var/www/acme
-BindPaths=/etc/acme
-BindReadOnlyPaths=/etc/acme-client.conf
+BindPaths=/var/certificates
+BindReadOnlyPaths=/etc/lego.conf
