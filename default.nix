@@ -25,6 +25,10 @@ let
   };
 
   acme-client = acme-client-libressl.overrideDerivation (oldAttrs: {
+    nativeBuildInputs = [
+      pkgs.pkg-config
+      pkgs.yacc
+    ];
     patches = [
       ./patches/0001-Disable-check-for-being-root.patch
       ./patches/0002-Make-keyfiles-group-readable.patch

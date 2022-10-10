@@ -7,7 +7,7 @@ Requires=network.target nss-lookup.target
 [Service]
 Type=oneshot
 ExecStartPre=/usr/bin/acme-client -n %I
-ExecStart=/usr/bin/acme-client -v %I
+ExecStart=/usr/bin/acme-client -vv %I
 # TODO: Add a script to reload nginx here. The only hurdle is, the acme-client
 # user should not have permission to do that, so it can't run as that user.
 # Maybe I'll just periodically sighup nginx.

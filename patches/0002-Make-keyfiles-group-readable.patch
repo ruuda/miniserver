@@ -1,4 +1,4 @@
-From f6aad74669bca951c41df9635c4e3f7eaeff89e3 Mon Sep 17 00:00:00 2001
+From b9baf8ad7e45121e1212794eb0e2b10b0fd664db Mon Sep 17 00:00:00 2001
 From: Ruud van Asseldonk <dev@veniogames.com>
 Date: Sun, 9 Oct 2022 23:17:32 +0200
 Subject: [PATCH 2/2] Make keyfiles group-readable
@@ -9,7 +9,8 @@ read these files.
 ---
  usr.sbin/acme-client/acctproc.c | 2 +-
  usr.sbin/acme-client/keyproc.c  | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ usr.sbin/acme-client/parse.y    | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/usr.sbin/acme-client/acctproc.c b/usr.sbin/acme-client/acctproc.c
 index 8b4c057..879c170 100644
@@ -37,6 +38,21 @@ index d0da5ef..24364a9 100644
  	if ((f = fopen(keyfile, "r")) == NULL && errno == ENOENT) {
  		f = fopen(keyfile, "wx");
  		newkey = 1;
+diff --git a/usr.sbin/acme-client/parse.y b/usr.sbin/acme-client/parse.y
+index f8e76b2..18c3ac6 100644
+--- a/usr.sbin/acme-client/parse.y
++++ b/usr.sbin/acme-client/parse.y
+@@ -1121,8 +1121,8 @@ conf_check_file(char *s)
+ 		warn("cannot stat %s", s);
+ 		return 0;
+ 	}
+-	if (st.st_mode & (S_IRWXG | S_IRWXO)) {
+-		warnx("%s: group read/writable or world read/writable", s);
++	if (st.st_mode & (S_IRWXO)) {
++		warnx("%s: world read/writable", s);
+ 		return 0;
+ 	}
+ 	return 1;
 -- 
 2.38.0
 
