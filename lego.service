@@ -55,3 +55,7 @@ ProtectKernelTunables=true
 BindPaths=/var/www/acme
 BindPaths=/var/certificates
 BindReadOnlyPaths=/etc/lego.conf
+BindReadOnlyPaths=/etc/resolv.conf
+# The container image does not contain its own copy of the cacert package,
+# we rely on the certificates from the host.
+BindReadOnlyPaths=/etc/ssl/certs

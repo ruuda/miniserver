@@ -137,6 +137,7 @@ let
       # unit, but it is required by systemd-nspawn, so we add it too.
       mkdir -p $out/dev
       mkdir -p $out/etc/nginx
+      mkdir -p $out/etc/ssl/certs
       mkdir -p $out/nix/store
       mkdir -p $out/proc
       mkdir -p $out/run
@@ -149,6 +150,7 @@ let
       mkdir -p $out/var/tmp
       mkdir -p $out/var/www/acme
       touch $out/etc/lego.conf
+      touch $out/etc/resolv.conf
       ln -s /usr/bin $out/bin
       ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
       ln -s ${pkgs.lego}/bin/lego $out/usr/bin/lego
