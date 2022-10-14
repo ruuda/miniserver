@@ -12,6 +12,7 @@ ExecStart=/usr/bin/lego \
   --http.webroot /var/www/acme \
   --path /var/certificates \
   --pem \
+  --http \
   $LEGO_FLAGS
 
 # You'd set e.g. the following in /etc/lego.conf:
@@ -56,6 +57,12 @@ BindPaths=/var/www/acme
 BindPaths=/var/certificates
 BindReadOnlyPaths=/etc/lego.conf
 BindReadOnlyPaths=/etc/resolv.conf
+
 # The container image does not contain its own copy of the cacert package,
-# we rely on the certificates from the host.
+# we rely on the certificates from the host. On Flatcar, the certificates are
+# in /usr/share, but the Go x509 implementation does not look there [1]. It does
+# look in /etc/ssl, and Flatcar does have symlinks over there. So we need to
+# mount both.
+# [1]: https://go.dev/src/crypto/x509/root_linux.go
 BindReadOnlyPaths=/etc/ssl/certs
+BindReadOnlyPaths=/usr/share/ca-certificates

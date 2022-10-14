@@ -144,6 +144,7 @@ let
       mkdir -p $out/sys
       mkdir -p $out/tmp
       mkdir -p $out/usr/bin
+      mkdir -p $out/usr/share/ca-certificates
       mkdir -p $out/var/certificates
       mkdir -p $out/var/log/journal
       mkdir -p $out/var/log/nginx
