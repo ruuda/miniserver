@@ -10,7 +10,7 @@ ExecStartPre=/usr/bin/nginx -t
 ExecStart=/usr/bin/nginx
 PrivateTmp=true
 User=nginx
-Group=nginx
+Group=www
 
 # When stopping the unit, send SIGQUIT to the main process (which causes Nginx
 # to shut down gracefully), and don't send anything to other processes. If the
