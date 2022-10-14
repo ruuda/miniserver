@@ -28,11 +28,7 @@ ExecStart=/usr/bin/lego \
 # Maybe I'll just periodically sighup nginx.
 # ExecStartPost=
 PrivateTmp=true
-
-# Unfortunately, Lego hard-codes file permissions to 0o600 (rw for owner and no
-# access for others), which means we can’t make this owned by Lego and then
-# allow nginx to read it by virtue of being in the www group.
-User=nginx
+User=lego
 Group=www
 
 # The settings below are substituted at deployment time by the deploy script.
