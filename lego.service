@@ -10,7 +10,7 @@ EnvironmentFile=/etc/lego.conf
 ExecStart=/usr/bin/lego \
   --server https://acme-staging-v02.api.letsencrypt.org/directory \
   --http.webroot /var/www/acme \
-  --path /var/certificates \
+  --path /var/lib/lego \
   --pem \
   --http \
   $LEGO_FLAGS
@@ -54,7 +54,7 @@ ProtectKernelTunables=true
 # to the challenge will be written, it should be served by Nginx at
 # .well-known/acme-challenge.
 BindPaths=/var/www/acme
-BindPaths=/var/certificates
+BindPaths=/var/lib/lego
 BindReadOnlyPaths=/etc/lego.conf
 BindReadOnlyPaths=/etc/resolv.conf
 

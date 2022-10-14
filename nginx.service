@@ -51,7 +51,7 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 # chroot as read-only.
 BindPaths=/var/log/nginx
 BindReadOnlyPaths=/etc/nginx
-BindReadOnlyPaths=/var/certificates
+BindReadOnlyPaths=/var/lib/lego/certificates
 BindReadOnlyPaths=/var/www
 
 [Install]
