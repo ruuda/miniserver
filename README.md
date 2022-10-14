@@ -60,7 +60,9 @@ It is recommended to encode these steps in your Ignition config.
  * Create `/etc/nginx/sites-enabled/` and put at least one Nginx configuration
    file in there. `/etc/nginx` will be mounted read-only inside the unit's
    chroot. Files in `sites-enabled` will be loaded by the master config.
- * Create `/var/certificates` and chown it to `lego:www`.
+ * Create `/var/lib/lego/certificates` and chown it and its parent to `lego:www`.
+   Set the file mode on `/var/lib/lego/certificates` to 0750, to enable the
+   `www` group to enter the directory.
  * Put your Lego flags environment file at `/etc/lego.conf`.
 
 Then to install or update:

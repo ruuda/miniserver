@@ -18,6 +18,7 @@ ExecStart=/usr/bin/lego \
 # You'd set e.g. the following in /etc/lego.conf:
 # LEGO_FLAGS=\
 # --accept-tos \
+# --server https://acme-v02.api.letsencrypt.org/directory \
 # --email webmaster@example.com \
 # --domains example.com \
 # --domains www.example.com \
