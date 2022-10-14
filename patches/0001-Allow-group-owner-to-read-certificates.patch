@@ -1,0 +1,27 @@
+From d10a91ded33cd2cebb43c489d3fc920471b8083e Mon Sep 17 00:00:00 2001
+From: Ruud van Asseldonk <dev@veniogames.com>
+Date: Fri, 14 Oct 2022 23:46:13 +0200
+Subject: [PATCH] Allow group owner to read certificates
+
+This way, Lego and Nginx can run as different non-root users, but still
+both access the certificates.
+---
+ cmd/setup.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/cmd/setup.go b/cmd/setup.go
+index b21b6d53..33daef4f 100644
+--- a/cmd/setup.go
++++ b/cmd/setup.go
+@@ -15,7 +15,7 @@ import (
+ 	"github.com/urfave/cli/v2"
+ )
+ 
+-const filePerm os.FileMode = 0o600
++const filePerm os.FileMode = 0o640
+ 
+ func setup(ctx *cli.Context, accountsStorage *AccountsStorage) (*Account, *lego.Client) {
+ 	keyType := getKeyType(ctx)
+-- 
+2.38.0
+

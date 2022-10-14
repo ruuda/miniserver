@@ -20,6 +20,10 @@ let
   # Nixpkgs when it is outdated, or update here when needed.
   libressl = pkgs.libressl;
 
+  lego = pkgs.lego.overrideAttrs (old: {
+    patches = [ ./patches/0001-Allow-group-owner-to-read-certificates.patch ];
+  });
+
   lightNginx = pkgs.nginxMainline.override {
     # Remove dependency on libgd; It brings in a lot of transitive dependencies
     # that we don't need (fontconfig, image codecs, etc.). Also disable other
@@ -127,7 +131,7 @@ let
   # those links will point to the right places.
   imageDir = pkgs.stdenv.mkDerivation {
     name = "miniserver-filesystem";
-    buildInputs = [ customNginx pkgs.lego ];
+    buildInputs = [ customNginx lego ];
     buildCommand = ''
       # Although we only need /nix/store and /usr/bin, we need to create the
       # other directories too so systemd can mount the API virtual filesystems
@@ -154,8 +158,8 @@ let
       touch $out/etc/resolv.conf
       ln -s /usr/bin $out/bin
       ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
-      ln -s ${pkgs.lego}/bin/lego $out/usr/bin/lego
-      closureInfo=${pkgs.closureInfo { rootPaths = [ customNginx pkgs.lego ]; }}
+      ln -s ${lego}/bin/lego $out/usr/bin/lego
+      closureInfo=${pkgs.closureInfo { rootPaths = [ customNginx lego ]; }}
       for file in $(cat $closureInfo/store-paths); do
         echo "copying $file"
         cp --archive $file $out/nix/store
