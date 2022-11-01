@@ -10,7 +10,7 @@ Features:
  * A recent Nginx, with Brotli support.
  * [Lego][lego] to refresh your Letsencrypt certificates.
  * Bit by bit reproducible.
- * Packaged as a squashfs file system, runs using systemd's isolation.
+ * Packaged as a squashfs file system, runs using systemd's isolation features.
 
 [lego]: https://go-acme.github.io/lego/
 
