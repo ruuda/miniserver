@@ -1,0 +1,18 @@
+# Miniserver Lego timer unit.
+
+[Unit]
+Description=Renew certificates
+
+[Timer]
+# Run immediately if the system was off for an extended period of time.
+Persistent=true
+
+# Run daily, at a pseudorandom offset from midnight. The offset from midnight is
+# derived from the hostname at deploy time, such that different hosts renew at
+# different times, to spread the load on Letsencrypt. Additionally, add a random
+# offset between 0 and 1h for every run.
+OnCalendar=*-*-* {{RENEW_TIME}}
+RandomizedDelaySec=3600
+
+[Install]
+WantedBy=timers.target

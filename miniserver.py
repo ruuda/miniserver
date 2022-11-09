@@ -79,10 +79,25 @@ def sshfs(host: str) -> Iterator[str]:
     os.rmdir(tmp_path)
 
 
+def get_renew_time(host: str) -> str:
+    """
+    Pick a time of the day at which certificats should be renewed, based on the
+    hostname. This function is deterministic, so a given hostname will always
+    renew at the same time of the day, but across all servers that run this, the
+    load will be spread out.
+    """
+    from random import Random
+    rng = Random(host)
+    minutes_since_midnight = rng.randrange(0, 60 * 24)
+    hh, mm = minutes_since_midnight // 60, minutes_since_midnight % 60
+    return f'{hh:02}:{mm:02}'
+
+
 def deploy_image(
     release_name: str,
     release_path: str,
     tmp_path: str,
+    renew_time: str,
 ) -> None:
     target_dir = f'{tmp_path}/store/{release_name}'
     now = datetime.now(timezone.utc)
@@ -107,6 +122,13 @@ def deploy_image(
         {
             '{{ROOT_IMAGE}}': f'/var/lib/miniserver/store/{release_name}/miniserver.img',
             '{{ROOT_HASH}}': roothash,
+        },
+    )
+    copy_replace_file(
+        'lego.timer',
+        f'{target_dir}/lego.timer',
+        {
+            '{{RENEW_TIME}}': renew_time,
         },
     )
 
@@ -159,12 +181,13 @@ def main() -> None:
 
     release_path = get_current_release_path()
     release_name = os.path.basename(release_path).split('-')[0]
+    renew_time = get_renew_time(host)
 
     if cmd == 'deploy':
         print('Deploying', release_path, '...')
 
         with sshfs(host) as tmp_path:
-            deploy_image(release_name, release_path, tmp_path)
+            deploy_image(release_name, release_path, tmp_path, renew_time)
 
             print('Restarting nginx ...')
             subprocess.run([
@@ -193,16 +216,18 @@ def main() -> None:
     if cmd == 'install':
         print('Deploying', release_path, '...')
         with sshfs(host) as tmp_path:
-            deploy_image(release_name, release_path, tmp_path)
+            deploy_image(release_name, release_path, tmp_path, renew_time)
 
             print('Linking, enabling, and starting systemd units ...')
             subprocess.run([
                 'ssh', host,
                 'sudo ln -fs /var/lib/miniserver/current/nginx.service /etc/systemd/system/nginx.service && '
                 'sudo ln -fs /var/lib/miniserver/current/lego.service /etc/systemd/system/lego.service && '
+                'sudo ln -fs /var/lib/miniserver/current/lego.timer /etc/systemd/system/lego.timer && '
                 'sudo systemctl daemon-reload && '
-                'sudo systemctl enable --now nginx && '
-                'sudo env SYSTEMD_COLORS=256 systemctl status nginx',
+                'sudo systemctl enable --now nginx.service && '
+                'sudo systemctl enable --now lego.timer && '
+                'sudo env SYSTEMD_COLORS=256 systemctl status nginx.service lego.timer',
             ])
 
 
