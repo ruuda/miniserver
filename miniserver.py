@@ -8,6 +8,7 @@ USAGE
 
     miniserver.py deploy <host>
     miniserver.py status <host>
+    miniserver.py install <host>
 
 ARGUMENTS
 
@@ -159,6 +160,15 @@ def deploy_image(
     # TODO: Delete old releases.
 
 
+def get_store_size_bytes(tmp_path: str) -> int:
+    store_path = os.path.join(tmp_path, 'store')
+    return sum(
+        os.stat(os.path.join(dirpath, fname)).st_size
+        for dirpath, _dirnames, fnames in os.walk(store_path)
+        for fname in fnames
+    )
+
+
 def main() -> None:
     args = sys.argv[1:]
 
@@ -200,12 +210,18 @@ def main() -> None:
     if cmd == 'status':
         with sshfs(host) as tmp_path:
             current_link = os.readlink(f'{tmp_path}/current')
-            print(f'Current local version:     {release_name}')
-            print(f'Current remote deployment: {current_link.removeprefix("store/")}')
+            previous_link = os.readlink(f'{tmp_path}/previous')
+            store_size_bytes = get_store_size_bytes(tmp_path)
+            store_size_mb = store_size_bytes / 1e6
+            print(f'Current local version:      {release_name}')
+            print(f'Current remote deployment:  {current_link.removeprefix("store/")}')
+            print(f'Previous remote deployment: {previous_link.removeprefix("store/")}')
+            print(f'Store size:                 {store_size_mb:,.2f} MB')
             print('Latest deployment log entries:')
             with open(f'{tmp_path}/deploy.log', 'r', encoding='utf-8') as f:
-                for line in f.readlines()[-5:]:
-                    print('  ', line, end='')
+                for line in reversed(f.readlines()[-5:]):
+                    # Cut out the T from the timestamp to make it more readable.
+                    print('  ', line[:10], line[11:], end='')
 
             print()
             subprocess.run([
