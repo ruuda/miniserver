@@ -6,9 +6,16 @@ Miniserver -- deploy a self-contained nginx and lego image.
 
 USAGE
 
-    miniserver.py deploy <host>
-    miniserver.py status <host>
-    miniserver.py install <host>
+    miniserver.py <command> <host>
+
+COMMANDS
+
+   deploy     Deploy the currently checked-out version.
+   status     Print currently deployed version and status of the nginx unit.
+   install    Perform first-time installation on a fresh host.
+   gc         Remove old versions from the store.
+              Note, gc also happens automatically after deploy, the manual
+              command is here mostly for testing purposes.
 
 ARGUMENTS
 
@@ -24,7 +31,7 @@ import uuid
 
 from datetime import datetime, timezone
 from contextlib import contextmanager
-from typing import Dict, Iterator
+from typing import Dict, Iterator, Tuple
 
 from nix_store import NIX_BIN, ensure_pinned_nix_version, run
 
@@ -156,8 +163,7 @@ def deploy_image(
         target_is_directory=True,
     )
     print(f'Linked "current" -> "store/{release_name}".')
-
-    # TODO: Delete old releases.
+    gc_store(tmp_path, max_size_bytes=550_000_000)
 
 
 def get_store_size_bytes(tmp_path: str) -> int:
@@ -169,6 +175,74 @@ def get_store_size_bytes(tmp_path: str) -> int:
     )
 
 
+def read_version_link(tmp_path: str, link_name: str) -> str:
+    """
+    Read a symlink, return the version directory it points to,
+    without 'store' prefix.
+    """
+    return os.readlink(f'{tmp_path}/{link_name}').removeprefix('store/')
+
+
+def gc_store(tmp_path: str, max_size_bytes: int):
+    sizes: Dict[str, int] = {}
+    store_path = os.path.join(tmp_path, 'store')
+    for version in os.listdir(store_path):
+        version_path = os.path.join(store_path, version)
+        size_bytes = sum(
+            os.stat(os.path.join(dirpath, fname)).st_size
+            for dirpath, _dirnames, fnames in os.walk(version_path)
+            for fname in fnames
+        )
+        sizes[version] = size_bytes
+
+    # Build the ordered candidates for deletion, ordered by most recently
+    # deployed first (those must be kept).
+    candidates: Dict[str, Tuple[int, str]] = {}
+
+    with open(f'{tmp_path}/deploy.log', 'r', encoding='utf-8') as f:
+        for line in reversed(f.readlines()):
+            time, name = line.strip().split(' ')
+            if name in sizes and name not in candidates:
+                candidates[name] = sizes[name], time
+
+    budget_bytes = max_size_bytes
+
+    # We should not GC anything that has a link pointing to it.
+    current_name = read_version_link(tmp_path, 'current')
+    previous_name = read_version_link(tmp_path, 'previous')
+    budget_bytes -= candidates.pop(current_name)[0]
+    budget_bytes -= candidates.pop(previous_name)[0]
+
+    # Keep as many of the most recent releases as will fit the budget.
+    to_keep = set()
+    for name, (size, time) in candidates.items():
+        if budget_bytes > size:
+            to_keep.add(name)
+            budget_bytes -= size
+        else:
+            break
+
+    to_delete = [
+        (name, size)
+        for name, (size, _time) in candidates.items() if name not in to_keep
+    ]
+
+    if len(to_delete) == 0:
+        print('GC: No candidates to delete from the store.')
+        return
+
+    freed_bytes = sum(size for _name, size in to_delete)
+    freed_mb = freed_bytes / 1e6
+    print(
+        f'GC: Deleting the {len(to_delete)} least recently deployed versions '
+        f'to free up {freed_mb:,.2f} MB of space.'
+    )
+    for name, size in to_delete:
+        print(f'  {name} ({size / 1e6:,.2f} MB)', end='')
+        shutil.rmtree(os.path.join(store_path, name))
+        print(' deleted')
+
+
 def main() -> None:
     args = sys.argv[1:]
 
@@ -177,7 +251,7 @@ def main() -> None:
         sys.exit(1)
 
     cmd, args = args[0], args[1:]
-    if cmd not in ('deploy', 'status', 'install'):
+    if cmd not in ('deploy', 'gc', 'status', 'install'):
         print('Invalid command:', cmd)
         print(__doc__)
         sys.exit(1)
@@ -209,13 +283,13 @@ def main() -> None:
 
     if cmd == 'status':
         with sshfs(host) as tmp_path:
-            current_link = os.readlink(f'{tmp_path}/current')
-            previous_link = os.readlink(f'{tmp_path}/previous')
+            current_name = read_version_link(tmp_path, 'current')
+            previous_name = read_version_link(tmp_path, 'previous')
             store_size_bytes = get_store_size_bytes(tmp_path)
             store_size_mb = store_size_bytes / 1e6
             print(f'Current local version:      {release_name}')
-            print(f'Current remote deployment:  {current_link.removeprefix("store/")}')
-            print(f'Previous remote deployment: {previous_link.removeprefix("store/")}')
+            print(f'Current remote deployment:  {current_name}')
+            print(f'Previous remote deployment: {previous_name}')
             print(f'Store size:                 {store_size_mb:,.2f} MB')
             print('Latest deployment log entries:')
             with open(f'{tmp_path}/deploy.log', 'r', encoding='utf-8') as f:
@@ -228,6 +302,10 @@ def main() -> None:
                 'ssh', host,
                 'sudo env SYSTEMD_COLORS=256 systemctl status nginx',
             ])
+
+    if cmd == 'gc':
+        with sshfs(host) as tmp_path:
+            gc_store(tmp_path, max_size_bytes=550_000_000)
 
     if cmd == 'install':
         print('Deploying', release_path, '...')
