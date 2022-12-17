@@ -1,0 +1,10 @@
+# Miniserver config reloader unit.
+
+[Unit]
+Description=Runs after lego.service to make nginx reload certs.
+After=lego.service
+PartOf=lego.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl kill --signal=HUP nginx.service

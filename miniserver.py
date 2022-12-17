@@ -144,6 +144,11 @@ def deploy_image(
             "{{RENEW_TIME}}": renew_time,
         },
     )
+    copy_replace_file(
+        "nginx-reload-config.service",
+        f"{target_dir}/nginx-reload-config.service",
+        {},
+    )
 
     # Record when we deployed this version.
     with open(f"{tmp_path}/deploy.log", "a", encoding="utf-8") as deploylog:
