@@ -4,6 +4,10 @@
 Description=Let’s Encrypt client and ACME library written in Go
 Requires=network.target nss-lookup.target
 
+# Reload nginx config after this unit completes, so nginx can pick up the new
+# certificates if Lego renewed them.
+Wants=nginx-reload-config.service
+
 [Service]
 Type=oneshot
 EnvironmentFile=/etc/lego.conf

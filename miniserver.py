@@ -335,6 +335,7 @@ def main() -> None:
                     "ssh",
                     host,
                     "sudo ln -fs /var/lib/miniserver/current/nginx.service /etc/systemd/system/nginx.service && "
+                    "sudo ln -fs /var/lib/miniserver/current/nginx-reload-config.service /etc/systemd/system/nginx-reload-config.service && "
                     "sudo ln -fs /var/lib/miniserver/current/lego.service /etc/systemd/system/lego.service && "
                     "sudo ln -fs /var/lib/miniserver/current/lego.timer /etc/systemd/system/lego.timer && "
                     "sudo systemctl daemon-reload && "
