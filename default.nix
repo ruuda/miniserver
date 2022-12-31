@@ -64,7 +64,7 @@ let
 
     http {
       # Same log format as the default "combined" format, but including the host.
-      log_format vhosts '$host $remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"';
+      log_format vhosts '$host: $remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"';
       access_log /var/log/nginx/access.log vhosts;
 
       include /etc/nginx/sites-enabled/*;
