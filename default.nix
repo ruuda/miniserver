@@ -78,6 +78,7 @@ let
     configureFlags = [
       "--with-http_ssl_module"
       "--with-http_v2_module"
+      "--with-http_v3_module"
       "--with-http_gzip_static_module"
       "--with-threads"
       "--with-pcre-jit"
