@@ -173,7 +173,6 @@ def deploy_image(
         target_is_directory=True,
     )
     print(f'Linked "current" -> "store/{release_name}".')
-    gc_store(tmp_path, max_size_bytes=550_000_000)
 
 
 def get_store_size_bytes(tmp_path: str) -> int:
@@ -283,6 +282,7 @@ def main() -> None:
 
         with sshfs(host) as tmp_path:
             deploy_image(release_name, release_path, tmp_path, renew_time)
+            gc_store(tmp_path, max_size_bytes=550_000_000)
 
             print("Restarting nginx ...")
             subprocess.run(
