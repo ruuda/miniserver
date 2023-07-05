@@ -26,7 +26,7 @@ import uuid
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union
 
 from nix_store import get_build_requisites, get_runtime_requisites, run
-from nix_store import NIX_216_BIN, ensure_pinned_nix_version
+from nix_store import NIX_BIN, ensure_pinned_nix_version
 from nix_diff import Addition, Change, Diff, Removal, diff, format_difflist
 
 class Branch(NamedTuple):
@@ -71,7 +71,7 @@ def prefetch_url(url: str) -> str:
     Prefetch a file into the Nix store and return its sha256.
     """
     result_raw = run(
-        f'{NIX_216_BIN}/nix',
+        f'{NIX_BIN}/nix',
         '--extra-experimental-features', 'nix-command',
         '--extra-experimental-features', 'flakes',
         'flake',
@@ -119,7 +119,7 @@ def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -
 
     print('[1/3] Building before ...')
     subprocess.run([
-        f'{NIX_216_BIN}/nix',
+        f'{NIX_BIN}/nix',
         '--extra-experimental-features', 'nix-command',
         'build',
         '--file', 'default.nix',
@@ -139,7 +139,7 @@ def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -
 
     print('[3/3] Building after ...')
     subprocess.run([
-        f'{NIX_216_BIN}/nix',
+        f'{NIX_BIN}/nix',
         '--extra-experimental-features', 'nix-command',
         'build',
         '--file', 'default.nix',

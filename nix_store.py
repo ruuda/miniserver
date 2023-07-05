@@ -16,10 +16,10 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 
 # Although nix-prefetch-url was always broken, there is a newer 'nix flake
 # prefech' that we can use instead.
-NIX_216_BIN = '/nix/store/a3g640wlfhxaqdw0nla62vn0m3fc4q6p-nix-2.16.1/bin'
+NIX_BIN = '/nix/store/a3g640wlfhxaqdw0nla62vn0m3fc4q6p-nix-2.16.1/bin'
 
 def ensure_pinned_nix_version():
-    if not os.path.isfile(f'{NIX_216_BIN}/nix'):
+    if not os.path.isfile(f'{NIX_BIN}/nix'):
         print('Getting Nix 2.16.1 ...')
         run('nix-store', '--realise', os.path.dirname(NIX_211_BIN))
     else:
@@ -205,7 +205,7 @@ def get_packages_from_derivations(drv_paths: List[str]) -> Iterable[Package]:
 
     # "nix show-derivation" produces a map from store path to derivation.
     path_to_drv = json.loads(run(
-        f'{NIX_216_BIN}/nix',
+        f'{NIX_BIN}/nix',
         '--extra-experimental-features', 'nix-command',
         'derivation',
         'show',
@@ -232,8 +232,8 @@ def get_runtime_requisites(path: str) -> Set[Package]:
     """
     Return the closure of runtime dependencies of the store path.
     """
-    runtime_deps = run(f'{NIX_216_BIN}/nix-store', '--query', '--requisites', path).splitlines()
-    derivations = run(f'{NIX_216_BIN}/nix-store', '--query', '--deriver', *runtime_deps).splitlines()
+    runtime_deps = run(f'{NIX_BIN}/nix-store', '--query', '--requisites', path).splitlines()
+    derivations = run(f'{NIX_BIN}/nix-store', '--query', '--deriver', *runtime_deps).splitlines()
     return set(get_packages_from_derivations(derivations))
 
 
@@ -241,7 +241,7 @@ def get_build_requisites(path: str) -> Set[Package]:
     """
     Return the closure of build time dependencies of the store path.
     """
-    derivation = run(f'{NIX_216_BIN}/nix-store', '--query', '--deriver', path).strip()
-    deps_closure = run(f'{NIX_216_BIN}/nix-store', '--query', '--requisites', derivation)
+    derivation = run(f'{NIX_BIN}/nix-store', '--query', '--deriver', path).strip()
+    deps_closure = run(f'{NIX_BIN}/nix-store', '--query', '--requisites', derivation)
     deps_derivations = [p for p in deps_closure.splitlines() if p.endswith('.drv')]
     return set(get_packages_from_derivations(deps_derivations))

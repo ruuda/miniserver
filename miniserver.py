@@ -33,13 +33,13 @@ from datetime import datetime, timezone
 from contextlib import contextmanager
 from typing import Dict, Iterator, Tuple
 
-from nix_store import NIX_216_BIN, ensure_pinned_nix_version, run
+from nix_store import NIX_BIN, ensure_pinned_nix_version, run
 
 
 def get_current_release_path() -> str:
     ensure_pinned_nix_version()
     return run(
-        f"{NIX_216_BIN}/nix",
+        f"{NIX_BIN}/nix",
         "--extra-experimental-features",
         "nix-command",
         "path-info",
