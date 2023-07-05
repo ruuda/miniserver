@@ -5,7 +5,7 @@ from __future__ import annotations
 """
 Extract package names and version of the closure of a Nix store path.
 """
- 
+
 import json
 import os.path
 import subprocess
@@ -16,33 +16,35 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 
 # Although nix-prefetch-url was always broken, there is a newer 'nix flake
 # prefech' that we can use instead.
-NIX_BIN = '/nix/store/a3g640wlfhxaqdw0nla62vn0m3fc4q6p-nix-2.16.1/bin'
+NIX_BIN = "/nix/store/a3g640wlfhxaqdw0nla62vn0m3fc4q6p-nix-2.16.1/bin"
+
 
 def ensure_pinned_nix_version():
-    if not os.path.isfile(f'{NIX_BIN}/nix'):
-        print('Getting Nix 2.16.1 ...')
-        run('nix-store', '--realise', os.path.dirname(NIX_211_BIN))
+    if not os.path.isfile(f"{NIX_BIN}/nix"):
+        print("Getting Nix 2.16.1 ...")
+        run("nix-store", "--realise", os.path.dirname(NIX_211_BIN))
     else:
-        print('Already have Nix 2.16.1.')
+        print("Already have Nix 2.16.1.")
 
 
 class Package(NamedTuple):
     """
     Package name and version, inferred through a heuristic from a store path.
     """
+
     name: str
     version: str
     group: Optional[str] = None
 
     def __str__(self) -> str:
-        return self.name + (f'-{self.version}' if self.version != '' else '')
+        return self.name + (f"-{self.version}" if self.version != "" else "")
 
     def __lt__(self, other):
         # Overload the comparison operator, to give packages where group=None
         # an ordering with respect to pacakges that do have a group. Without
         # this, sorting a list of packages can fail with a TypeError.
-        lhs = (self.name, self.version, self.group or '')
-        rhs = (other.name, other.version, other.group or '')
+        lhs = (self.name, self.version, self.group or "")
+        rhs = (other.name, other.version, other.group or "")
         return lhs < rhs
 
     def name_with_group(self) -> str:
@@ -52,7 +54,7 @@ class Package(NamedTuple):
         is "perl5.31.0".
         """
         if self.group is not None:
-            return f'{self.group}-{self.name}'
+            return f"{self.group}-{self.name}"
         else:
             return self.name
 
@@ -62,9 +64,9 @@ class Package(NamedTuple):
         not treat the group as part of the name. This is to avoid triggering
         huge diffs if Perl is bumped, but the Perl package versions don’t change.
         """
-        assert self.group == None, 'Can only extract group once.'
+        assert self.group == None, "Can only extract group once."
 
-        parts = self.name.split('-', maxsplit=1)
+        parts = self.name.split("-", maxsplit=1)
 
         if len(parts) == 1:
             return self
@@ -72,9 +74,9 @@ class Package(NamedTuple):
         # Use heuristics; for now we only detect this grouping situation for
         # Perl. I believe it also applies to Python, but I can add it when that
         # happens.
-        if parts[0].startswith('perl5'):
+        if parts[0].startswith("perl5"):
             return Package(name=parts[1], version=self.version, group=parts[0])
-        if parts[0].startswith('ruby2.'):
+        if parts[0].startswith("ruby2."):
             return Package(name=parts[1], version=self.version, group=parts[0])
 
         return self
@@ -84,7 +86,7 @@ class Package(NamedTuple):
         """
         Parse a package name and version using heuristics, from a name-version.
         """
-        parts = [part for part in path.split('-') if part != '']
+        parts = [part for part in path.split("-") if part != ""]
 
         name: List[str] = []
         version: List[str] = []
@@ -103,20 +105,20 @@ class Package(NamedTuple):
         # Some store path have a suffix because the derivation has multiple
         # outputs. Merge these into a single entry.
         excludes = (
-            'bin',
-            'data',
-            'dev',
-            'doc',
-            'env',
-            'lib',
-            'man',
-            'sdist.tar.gz',
+            "bin",
+            "data",
+            "dev",
+            "doc",
+            "env",
+            "lib",
+            "man",
+            "sdist.tar.gz",
         )
         for exclude in excludes:
             if exclude in version:
                 version.remove(exclude)
 
-        return Package('-'.join(name), '-'.join(version))._extract_group()
+        return Package("-".join(name), "-".join(version))._extract_group()
 
     @staticmethod
     def parse_derivation(derivation: Dict[str, Any]) -> Optional[Package]:
@@ -124,32 +126,32 @@ class Package(NamedTuple):
         Try to extract structured name and version from a derivation returned by
         nix show-derivation, if the derivation is a package.
         """
-        if derivation['outputs'].get('out', {}).get('hash') is not None:
+        if derivation["outputs"].get("out", {}).get("hash") is not None:
             # If the derivation is a fixed-output derivation, then we assume
             # it's not a package (but instead likely something we fetch from the
             # network.)
             return None
 
-        if len(derivation['inputDrvs']) <= 2:
+        if len(derivation["inputDrvs"]) <= 2:
             # Some things are helper utils, not packages. We assume a package
             # has at least three inputs: Bash, stdenv, and its fetched source.
             # These helpers often have only two, no source.
             return None
 
-        env = derivation['env']
-        pname = env.get('pname')
-        name = env.get('name')
-        version = env.get('version')
+        env = derivation["env"]
+        pname = env.get("pname")
+        name = env.get("name")
+        version = env.get("version")
 
         if name is None:
             # Packages have names.
             return None
 
-        if name.split('-')[-1] == 'hook' or name.split('-')[-1] == 'hook.sh':
+        if name.split("-")[-1] == "hook" or name.split("-")[-1] == "hook.sh":
             # Hooks are not packages.
             return None
 
-        if name.endswith('stdenv-linux'):
+        if name.endswith("stdenv-linux"):
             # The stdenv is special, we don't count it as a package.
             return None
 
@@ -160,8 +162,8 @@ class Package(NamedTuple):
         if version is not None:
             # Sometimes we have only the name (including version) to go by, but
             # at least the version is known.
-            if name.endswith('-' + version):
-                return Package(name[:-len(version) - 1], version)._extract_group()
+            if name.endswith("-" + version):
+                return Package(name[: -len(version) - 1], version)._extract_group()
 
         # In some cases, we only have the name to go by, and we hope it
         # includes the version too. This can lead to false positives: some
@@ -170,7 +172,7 @@ class Package(NamedTuple):
         # tell them apart. For now, the heuristic is whether we managed to
         # parse the name in a sensible way.
         package = Package.parse(name)
-        if package.name != '' and package.version != '':
+        if package.name != "" and package.version != "":
             return package
 
         return None
@@ -188,7 +190,7 @@ def run(*cmd: str) -> str:
         sys.stdout.buffer.flush()
         sys.exit(1)
 
-    return result.stdout.decode('utf-8')
+    return result.stdout.decode("utf-8")
 
 
 def get_packages_from_derivations(drv_paths: List[str]) -> Iterable[Package]:
@@ -204,13 +206,16 @@ def get_packages_from_derivations(drv_paths: List[str]) -> Iterable[Package]:
             missing_paths.append(path)
 
     # "nix show-derivation" produces a map from store path to derivation.
-    path_to_drv = json.loads(run(
-        f'{NIX_BIN}/nix',
-        '--extra-experimental-features', 'nix-command',
-        'derivation',
-        'show',
-        *existing_paths,
-    ))
+    path_to_drv = json.loads(
+        run(
+            f"{NIX_BIN}/nix",
+            "--extra-experimental-features",
+            "nix-command",
+            "derivation",
+            "show",
+            *existing_paths,
+        )
+    )
     for drv_path, derivation in path_to_drv.items():
         package = Package.parse_derivation(derivation)
         if package is not None:
@@ -221,10 +226,10 @@ def get_packages_from_derivations(drv_paths: List[str]) -> Iterable[Package]:
     # https://discourse.nixos.org/t/how-to-get-a-missing-drv-file-for-a-derivation-from-nixpkgs/2300
     # So instead, we get the details heuristically from the store path.
     for drv_path in missing_paths:
-        _store_prefix, name = drv_path.split('-', maxsplit=1)
+        _store_prefix, name = drv_path.split("-", maxsplit=1)
         name = name[:-4]  # Cut off the .drv suffix.
         package = Package.parse(name)
-        if package.name != '' and package.version != '':
+        if package.name != "" and package.version != "":
             yield package
 
 
@@ -232,8 +237,12 @@ def get_runtime_requisites(path: str) -> Set[Package]:
     """
     Return the closure of runtime dependencies of the store path.
     """
-    runtime_deps = run(f'{NIX_BIN}/nix-store', '--query', '--requisites', path).splitlines()
-    derivations = run(f'{NIX_BIN}/nix-store', '--query', '--deriver', *runtime_deps).splitlines()
+    runtime_deps = run(
+        f"{NIX_BIN}/nix-store", "--query", "--requisites", path
+    ).splitlines()
+    derivations = run(
+        f"{NIX_BIN}/nix-store", "--query", "--deriver", *runtime_deps
+    ).splitlines()
     return set(get_packages_from_derivations(derivations))
 
 
@@ -241,7 +250,7 @@ def get_build_requisites(path: str) -> Set[Package]:
     """
     Return the closure of build time dependencies of the store path.
     """
-    derivation = run(f'{NIX_BIN}/nix-store', '--query', '--deriver', path).strip()
-    deps_closure = run(f'{NIX_BIN}/nix-store', '--query', '--requisites', derivation)
-    deps_derivations = [p for p in deps_closure.splitlines() if p.endswith('.drv')]
+    derivation = run(f"{NIX_BIN}/nix-store", "--query", "--deriver", path).strip()
+    deps_closure = run(f"{NIX_BIN}/nix-store", "--query", "--requisites", derivation)
+    deps_derivations = [p for p in deps_closure.splitlines() if p.endswith(".drv")]
     return set(get_packages_from_derivations(deps_derivations))

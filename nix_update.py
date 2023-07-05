@@ -13,7 +13,7 @@ Usage:
 
 Defaults to the NixOS/nixpkgs repository and the nixos-unstable branch.
 """
- 
+
 import json
 import os
 import re
@@ -29,6 +29,7 @@ from nix_store import get_build_requisites, get_runtime_requisites, run
 from nix_store import NIX_BIN, ensure_pinned_nix_version
 from nix_diff import Addition, Change, Diff, Removal, diff, format_difflist
 
+
 class Branch(NamedTuple):
     name: str
     # Sha of the commit that the branch currently points to.
@@ -41,7 +42,7 @@ class Commit(NamedTuple):
 
 
 def is_commit_hash(ref: str) -> bool:
-    return re.fullmatch('[0-9a-f]{40}', ref) is not None
+    return re.fullmatch("[0-9a-f]{40}", ref) is not None
 
 
 def get_branch_head(owner: str, repo: str, branch: str) -> Branch:
@@ -49,14 +50,16 @@ def get_branch_head(owner: str, repo: str, branch: str) -> Branch:
     Return the current HEAD commit hash of the given branch. This queries the
     GitHub API.
     """
-    url = f'https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{branch}'
+    url = f"https://api.github.com/repos/{owner}/{repo}/git/refs/heads/{branch}"
     response = urllib.request.urlopen(url)
     body = json.load(response)
-    sha: str = body['object']['sha']
+    sha: str = body["object"]["sha"]
     return Branch(branch, sha)
 
 
-def get_latest_revision(owner: str, repo: str, branch_or_sha: str) -> Union[Branch, Commit]:
+def get_latest_revision(
+    owner: str, repo: str, branch_or_sha: str
+) -> Union[Branch, Commit]:
     """
     Return the HEAD commit of the branch, or the commit itself if it was provided.
     """
@@ -71,12 +74,14 @@ def prefetch_url(url: str) -> str:
     Prefetch a file into the Nix store and return its sha256.
     """
     result_raw = run(
-        f'{NIX_BIN}/nix',
-        '--extra-experimental-features', 'nix-command',
-        '--extra-experimental-features', 'flakes',
-        'flake',
-        'prefetch',
-        '--json',
+        f"{NIX_BIN}/nix",
+        "--extra-experimental-features",
+        "nix-command",
+        "--extra-experimental-features",
+        "flakes",
+        "flake",
+        "prefetch",
+        "--json",
         url,
     )
     result = json.loads(result_raw)
@@ -87,7 +92,7 @@ def format_fetch_nixpkgs_tarball(owner: str, repo: str, commit_hash: str) -> str
     """
     For a given Nixpkgs commit, return a fetchTarball expression to fetch it.
     """
-    url = f'https://github.com/{owner}/{repo}/archive/{commit_hash}.tar.gz'
+    url = f"https://github.com/{owner}/{repo}/archive/{commit_hash}.tar.gz"
     archive_hash = prefetch_url(url)
 
     nix_expr = f"""\
@@ -113,38 +118,48 @@ def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -
     commit in the given channel, and build default.nix. If that produces any
     changes, keep nixpkgs-pinned.nix, otherwise restore the previous version.
     """
-    tmp_path = f'/tmp/nix-{uuid.uuid4()}'
-    before_path = f'{tmp_path}-before'
-    after_path = f'{tmp_path}-after'
+    tmp_path = f"/tmp/nix-{uuid.uuid4()}"
+    before_path = f"{tmp_path}-before"
+    after_path = f"{tmp_path}-after"
 
-    print('[1/3] Building before ...')
-    subprocess.run([
-        f'{NIX_BIN}/nix',
-        '--extra-experimental-features', 'nix-command',
-        'build',
-        '--file', 'default.nix',
-        '--out-link', before_path,
-    ])
+    print("[1/3] Building before ...")
+    subprocess.run(
+        [
+            f"{NIX_BIN}/nix",
+            "--extra-experimental-features",
+            "nix-command",
+            "build",
+            "--file",
+            "default.nix",
+            "--out-link",
+            before_path,
+        ]
+    )
 
-    os.rename('nixpkgs-pinned.nix', 'nixpkgs-pinned.nix.bak')
+    os.rename("nixpkgs-pinned.nix", "nixpkgs-pinned.nix.bak")
 
     if isinstance(revision, Branch):
-        print(f'[2/3] Fetching latest commit in {owner}/{repo} {revision.name} ...')
+        print(f"[2/3] Fetching latest commit in {owner}/{repo} {revision.name} ...")
     else:
-        print(f'[2/3] Fetching {owner}/{repo} {revision.head} ...')
+        print(f"[2/3] Fetching {owner}/{repo} {revision.head} ...")
 
     pinned_expr = format_fetch_nixpkgs_tarball(owner, repo, revision.head)
-    with open('nixpkgs-pinned.nix', 'w', encoding='utf-8') as f:
+    with open("nixpkgs-pinned.nix", "w", encoding="utf-8") as f:
         f.write(pinned_expr)
 
-    print('[3/3] Building after ...')
-    subprocess.run([
-        f'{NIX_BIN}/nix',
-        '--extra-experimental-features', 'nix-command',
-        'build',
-        '--file', 'default.nix',
-        '--out-link', after_path,
-    ])
+    print("[3/3] Building after ...")
+    subprocess.run(
+        [
+            f"{NIX_BIN}/nix",
+            "--extra-experimental-features",
+            "nix-command",
+            "build",
+            "--file",
+            "default.nix",
+            "--out-link",
+            after_path,
+        ]
+    )
 
     befores_build = get_build_requisites(before_path)
     befores_runtime = get_runtime_requisites(before_path)
@@ -167,7 +182,7 @@ def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -
         # revision in order to not introduce unnecessary churn. The store paths
         # can still change. That might mean that e.g. the compiler changed.
         # TODO: So should the build dependencies count or not?
-        os.rename('nixpkgs-pinned.nix.bak', 'nixpkgs-pinned.nix')
+        os.rename("nixpkgs-pinned.nix.bak", "nixpkgs-pinned.nix")
 
     return result
 
@@ -210,14 +225,14 @@ def summarize(diffs: Diffs) -> Optional[str]:
 
     def tail(n: int) -> str:
         if num_other_changes + n == 0:
-            return ''
+            return ""
         elif num_other_changes + n == 1:
-            return ', and one more change'
+            return ", and one more change"
         else:
-            return f', and {num_other_changes + n} changes'
+            return f", and {num_other_changes + n} changes"
 
     # Generate both long-form updates and short-form updates.
-    changes_long = [f'{ch.after.name} to {ch.after.version}' for ch in changes]
+    changes_long = [f"{ch.after.name} to {ch.after.version}" for ch in changes]
     changes_short = [ch.after.name for ch in changes]
 
     # Generate all possible messages, in order of preference. We prefer to
@@ -226,8 +241,8 @@ def summarize(diffs: Diffs) -> Optional[str]:
     messages = []
     omitted = 0
     while len(changes_long) > 0:
-        messages.append('Update ' + ', '.join(changes_long) + tail(omitted))
-        messages.append('Update ' + ', '.join(changes_short) + tail(omitted))
+        messages.append("Update " + ", ".join(changes_long) + tail(omitted))
+        messages.append("Update " + ", ".join(changes_short) + tail(omitted))
         changes_long.pop()
         changes_short.pop()
         omitted += 1
@@ -251,53 +266,56 @@ def commit_nixpkgs_pinned(
     """
     Commit nixpkgs-pinned.nix, and include the diff in the message.
     """
-    run('git', 'add', 'nixpkgs-pinned.nix')
+    run("git", "add", "nixpkgs-pinned.nix")
 
     if isinstance(revision, Branch):
         message = (
-            'This updates the pinned Nixpkgs snapshot to the latest commit '
-            f'in the {revision.name} branch of {owner}/{repo}.'
+            "This updates the pinned Nixpkgs snapshot to the latest commit "
+            f"in the {revision.name} branch of {owner}/{repo}."
         )
     else:
         message = (
-            f'This updates the pinned Nixpkgs snapshot to commit '
-            f'{revision.head} of {owner}/{repo}.'
+            f"This updates the pinned Nixpkgs snapshot to commit "
+            f"{revision.head} of {owner}/{repo}."
         )
 
     body_lines = [*textwrap.wrap(message, width=72)]
 
     if len(diffs.runtime) > 0:
         body_lines += [
-            '',
-            'Runtime dependencies:',
-            '',
+            "",
+            "Runtime dependencies:",
+            "",
             *format_difflist(diffs.runtime),
         ]
 
     if len(diffs.build) > 0:
         body_lines += [
-            '',
-            'Build dependencies:',
-            '',
+            "",
+            "Build dependencies:",
+            "",
             *format_difflist(diffs.build),
         ]
 
     if isinstance(revision, Branch):
-        subject = summarize(diffs) or f'Update to latest commit in {owner}/{repo} {revision.name}'
+        subject = (
+            summarize(diffs)
+            or f"Update to latest commit in {owner}/{repo} {revision.name}"
+        )
     else:
-        subject = summarize(diffs) or f'Update to pinned commit in {owner}/{repo}'
+        subject = summarize(diffs) or f"Update to pinned commit in {owner}/{repo}"
 
-    body = '\n'.join(body_lines)
-    message = f'{subject}\n\n{body}\n'
-    subprocess.run(['git', 'commit', '--message', message])
+    body = "\n".join(body_lines)
+    message = f"{subject}\n\n{body}\n"
+    subprocess.run(["git", "commit", "--message", message])
 
     # If we commit the new file, then we no longer need the backup.
-    os.remove('nixpkgs-pinned.nix.bak')
+    os.remove("nixpkgs-pinned.nix.bak")
 
     if isinstance(revision, Branch):
-        print(f'Committed upgrade to latest commit in {owner}/{repo} {revision.name}')
+        print(f"Committed upgrade to latest commit in {owner}/{repo} {revision.name}")
     else:
-        print(f'Committed upgrade to {owner}/{repo} {revision.head}')
+        print(f"Committed upgrade to {owner}/{repo} {revision.head}")
 
 
 def main(owner: str, repo: str, branch_or_sha: str) -> None:
@@ -312,18 +330,20 @@ def main(owner: str, repo: str, branch_or_sha: str) -> None:
         commit_nixpkgs_pinned(owner, repo, revision, diffs)
     else:
         if isinstance(revision, Branch):
-            print(f'Latest commit in {revision.name} branch has no interesting changes.')
+            print(
+                f"Latest commit in {revision.name} branch has no interesting changes."
+            )
         else:
-            print(f'Commit {revision.head} has no interesting changes.')
+            print(f"Commit {revision.head} has no interesting changes.")
 
 
 def getarg(n: int, default: str) -> str:
     return sys.argv[n] if len(sys.argv) > n else default
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(
-        owner=getarg(1, 'nixos'),
-        repo=getarg(2, 'nixpkgs'),
-        branch_or_sha=getarg(3, 'nixos-unstable'),
+        owner=getarg(1, "nixos"),
+        repo=getarg(2, "nixpkgs"),
+        branch_or_sha=getarg(3, "nixos-unstable"),
     )

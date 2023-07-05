@@ -12,7 +12,7 @@ from typing import Iterable, Iterator, List, NamedTuple, Optional, TypeVar, Unio
 
 from nix_store import Package
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class Addition(NamedTuple):
@@ -62,7 +62,7 @@ def diff(befores: Iterable[Package], afters: Iterable[Package]) -> Iterator[Diff
             right = next_opt(it_afters)
             continue
 
-        assert left is not None and right is not None, 'Inputs must be sorted.'
+        assert left is not None and right is not None, "Inputs must be sorted."
 
         if left.name == right.name:
             if left.version != right.version:
@@ -95,30 +95,30 @@ def format_difflist(diffs: List[Diff]) -> Iterator[str]:
 
     if len(names) == 0:
         # Print to stderr so redirect works for normal output.
-        sys.stderr.write('No differences found.\n')
+        sys.stderr.write("No differences found.\n")
         return
 
     name_len = max(len(name) for name in names)
-    before_len = max(len(version) for version in ['0', *versions_before])
-    after_len = max(len(version) for version in ['0', *versions_after])
+    before_len = max(len(version) for version in ["0", *versions_before])
+    after_len = max(len(version) for version in ["0", *versions_after])
 
     for diff in diffs:
-        op = ' '
-        arrow = '  '
-        name = ''
-        v_before = ''
-        v_after = ''
+        op = " "
+        arrow = "  "
+        name = ""
+        v_before = ""
+        v_after = ""
 
         if isinstance(diff, Addition):
-            op = '+'
+            op = "+"
             name = diff.package.name_with_group()
             v_after = diff.package.version
         if isinstance(diff, Removal):
-            op = '-'
+            op = "-"
             name = diff.package.name_with_group()
             v_before = diff.package.version
         if isinstance(diff, Change):
-            arrow = '->'
+            arrow = "->"
             name = diff.before.name_with_group()
             v_before = diff.before.version
             v_after = diff.after.version
@@ -126,4 +126,4 @@ def format_difflist(diffs: List[Diff]) -> Iterator[str]:
         name = name.ljust(name_len)
         v_before = v_before.ljust(before_len)
         v_after = v_after.ljust(after_len)
-        yield f'{op} {name} {v_before} {arrow} {v_after}'
+        yield f"{op} {name} {v_before} {arrow} {v_after}"
