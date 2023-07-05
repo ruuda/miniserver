@@ -14,25 +14,16 @@ import sys
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 
 
-# Nix 2.4 has breaking changes in its CLI interface, use Nix 2.3 instead.
-NIX_BIN = '/nix/store/9hkh1fx8z1frgbz2nawr0mnyvizrb8yk-nix-2.3.15/bin'
-
 # Although nix-prefetch-url was always broken, there is a newer 'nix flake
 # prefech' that we can use instead.
-NIX_211_BIN = '/nix/store/2fgi9kcgh7wabarghii6qxh9646y1r4y-nix-2.11.0/bin'
+NIX_216_BIN = '/nix/store/a3g640wlfhxaqdw0nla62vn0m3fc4q6p-nix-2.16.1/bin'
 
 def ensure_pinned_nix_version():
-    if not os.path.isfile(f'{NIX_BIN}/nix'):
-        print('Getting Nix 2.3.15 ...')
-        run('nix-store', '--realise', os.path.dirname(NIX_BIN))
-    else:
-        print('Already have Nix 2.3.15.')
-
-    if not os.path.isfile(f'{NIX_211_BIN}/nix'):
-        print('Getting Nix 2.11.0 ...')
+    if not os.path.isfile(f'{NIX_216_BIN}/nix'):
+        print('Getting Nix 2.16.1 ...')
         run('nix-store', '--realise', os.path.dirname(NIX_211_BIN))
     else:
-        print('Already have Nix 2.11.0.')
+        print('Already have Nix 2.16.1.')
 
 
 class Package(NamedTuple):
@@ -133,10 +124,6 @@ class Package(NamedTuple):
         Try to extract structured name and version from a derivation returned by
         nix show-derivation, if the derivation is a package.
         """
-        if derivation['platform'] == 'builtin':
-            # If the derivation is produced by a builtin, it is not a package.
-            return None
-
         if derivation['outputs'].get('out', {}).get('hash') is not None:
             # If the derivation is a fixed-output derivation, then we assume
             # it's not a package (but instead likely something we fetch from the
@@ -218,7 +205,11 @@ def get_packages_from_derivations(drv_paths: List[str]) -> Iterable[Package]:
 
     # "nix show-derivation" produces a map from store path to derivation.
     path_to_drv = json.loads(run(
-        f'{NIX_BIN}/nix', 'show-derivation', *existing_paths,
+        f'{NIX_216_BIN}/nix',
+        '--extra-experimental-features', 'nix-command',
+        'derivation',
+        'show',
+        *existing_paths,
     ))
     for drv_path, derivation in path_to_drv.items():
         package = Package.parse_derivation(derivation)
@@ -241,8 +232,8 @@ def get_runtime_requisites(path: str) -> Set[Package]:
     """
     Return the closure of runtime dependencies of the store path.
     """
-    runtime_deps = run(f'{NIX_BIN}/nix-store', '--query', '--requisites', path).splitlines()
-    derivations = run(f'{NIX_BIN}/nix-store', '--query', '--deriver', *runtime_deps).splitlines()
+    runtime_deps = run(f'{NIX_216_BIN}/nix-store', '--query', '--requisites', path).splitlines()
+    derivations = run(f'{NIX_216_BIN}/nix-store', '--query', '--deriver', *runtime_deps).splitlines()
     return set(get_packages_from_derivations(derivations))
 
 
@@ -250,7 +241,7 @@ def get_build_requisites(path: str) -> Set[Package]:
     """
     Return the closure of build time dependencies of the store path.
     """
-    derivation = run(f'{NIX_BIN}/nix-store', '--query', '--deriver', path).strip()
-    deps_closure = run(f'{NIX_BIN}/nix-store', '--query', '--requisites', derivation)
+    derivation = run(f'{NIX_216_BIN}/nix-store', '--query', '--deriver', path).strip()
+    deps_closure = run(f'{NIX_216_BIN}/nix-store', '--query', '--requisites', derivation)
     deps_derivations = [p for p in deps_closure.splitlines() if p.endswith('.drv')]
     return set(get_packages_from_derivations(deps_derivations))
