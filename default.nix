@@ -207,9 +207,11 @@ let
     nativeBuildInputs = [ pkgs.erofs-utils ];
     buildInputs = [ imageDir ];
 
-    buildCommand = "mkfs.erofs $out ${imageDir} -L miniserver -zlz4";
+    # There is no significant size difference between level=6 and level=12,
+    # though there is a significant difference in compression time. So we opt
+    # for the faster mode.
+    buildCommand = "mkfs.erofs $out ${imageDir} -L miniserver -zlz4hc,level=6";
   };
-
 
 in
   pkgs.stdenv.mkDerivation {
