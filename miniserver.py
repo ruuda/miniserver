@@ -182,10 +182,17 @@ def deploy_image(
     print(f'Linked "current" -> "store/{release_name}".')
 
 
+def get_file_size_bytes(path: str) -> int:
+    try:
+        return os.stat(path).st_size
+    except FileNotFoundError:
+        return 0
+
+
 def get_store_size_bytes(tmp_path: str) -> int:
     store_path = os.path.join(tmp_path, "store")
     return sum(
-        os.stat(os.path.join(dirpath, fname)).st_size
+        get_file_size_bytes(os.path.join(dirpath, fname))
         for dirpath, _dirnames, fnames in os.walk(store_path)
         for fname in fnames
     )
@@ -205,7 +212,7 @@ def gc_store(tmp_path: str, max_size_bytes: int):
     for version in os.listdir(store_path):
         version_path = os.path.join(store_path, version)
         size_bytes = sum(
-            os.stat(os.path.join(dirpath, fname)).st_size
+            get_file_size_bytes(os.path.join(dirpath, fname))
             for dirpath, _dirnames, fnames in os.walk(version_path)
             for fname in fnames
         )
