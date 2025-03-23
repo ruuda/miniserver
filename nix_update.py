@@ -174,17 +174,7 @@ def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -
 
     diffs_build = list(diff(sorted(befores_build), sorted(afters_build)))
     diffs_runtime = list(diff(sorted(befores_runtime), sorted(afters_runtime)))
-    result = Diffs(diffs_build, diffs_runtime)
-
-    if len(result) == 0:
-        # If there were no changes in the output, then the new pinned revision
-        # is not useful to this project, so restore the previously pinned
-        # revision in order to not introduce unnecessary churn. The store paths
-        # can still change. That might mean that e.g. the compiler changed.
-        # TODO: So should the build dependencies count or not?
-        os.rename("nixpkgs-pinned.nix.bak", "nixpkgs-pinned.nix")
-
-    return result
+    return Diffs(diffs_build, diffs_runtime)
 
 
 def summarize(diffs: Diffs) -> Optional[str]:
@@ -326,9 +316,15 @@ def main(owner: str, repo: str, branch_or_sha: str) -> None:
     ensure_pinned_nix_version()
     revision = get_latest_revision(owner, repo, branch_or_sha)
     diffs = try_update_nixpkgs(owner, repo, revision)
-    if len(diffs) > 0:
+    if len(diffs.runtime) > 0:
         commit_nixpkgs_pinned(owner, repo, revision, diffs)
     else:
+        # If there were no changes in the output, then the new pinned revision
+        # is not useful to this project, so restore the previously pinned
+        # revision in order to not introduce unnecessary churn. The store paths
+        # can still change. That might mean that e.g. the compiler changed.
+        os.rename("nixpkgs-pinned.nix.bak", "nixpkgs-pinned.nix")
+
         if isinstance(revision, Branch):
             print(
                 f"Latest commit in {revision.name} branch has no interesting changes."
