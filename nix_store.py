@@ -16,15 +16,13 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 
 # Although nix-prefetch-url was always broken, there is a newer 'nix flake
 # prefech' that we can use instead.
-NIX_BIN = "/nix/store/a3g640wlfhxaqdw0nla62vn0m3fc4q6p-nix-2.16.1/bin"
+NIX_BIN = "/nix/store/clfkfybsfi0ihp7hjkz4dkgphj7yy0l4-nix-2.28.3/bin"
 
 
 def ensure_pinned_nix_version():
     if not os.path.isfile(f"{NIX_BIN}/nix"):
-        print("Getting Nix 2.16.1 ...")
-        run("nix-store", "--realise", os.path.dirname(NIX_211_BIN))
-    else:
-        print("Already have Nix 2.16.1.")
+        print("Getting Nix 2.28.3 ...")
+        run("nix-store", "--realise", os.path.dirname(NIX_BIN))
 
 
 class Package(NamedTuple):
