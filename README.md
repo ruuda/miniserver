@@ -29,7 +29,7 @@ The build involves the following:
  * Override `nginx` package to disable unused features (to reduce the number
    of dependencies, and thereby attack surface and image size). Add the
    [`ngx_brotli`][ngx-brotli] module for `brotli_static` support.
- * Build a self-contained squashfs image.
+ * Build a self-contained Erofs image.
 
 [nix]:        https://nixos.org/nix/
 [nixpkgs]:    https://github.com/NixOS/nixpkgs
