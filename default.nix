@@ -24,6 +24,14 @@ let
     patches = [ ./patches/0001-Allow-group-owner-to-read-certificates.patch ];
   });
 
+  nsd = (pkgs.nsd.override {
+    openssl = libressl;
+    withSystemd = false;
+  }).overrideDerivation (oldAttrs: {
+    # Until https://github.com/NixOS/nixpkgs/pull/489566 is merged.
+    nativeBuildInputs = [ pkgs.pkg-config ];
+  });
+
   lightNginx = pkgs.nginxMainline.override {
     # Remove dependency on libgd; It brings in a lot of transitive dependencies
     # that we don't need (fontconfig, image codecs, etc.). Also disable other
@@ -133,7 +141,7 @@ let
   # switching from Squashfs to Erofs.
   imageDir = pkgs.stdenv.mkDerivation {
     name = "miniserver-filesystem";
-    buildInputs = [ customNginx lego ];
+    buildInputs = [ customNginx lego nsd ];
     buildCommand = ''
       # Although we only need /nix/store and /usr/bin, we need to create the
       # other directories too so systemd can mount the API virtual filesystems
@@ -161,7 +169,8 @@ let
       ln -s /usr/bin $out/bin
       ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
       ln -s ${lego}/bin/lego $out/usr/bin/lego
-      closureInfo=${pkgs.closureInfo { rootPaths = [ customNginx lego ]; }}
+      ln -s ${nsd}/bin/nsd $out/usr/bin/nsd
+      closureInfo=${pkgs.closureInfo { rootPaths = [ customNginx lego nsd ]; }}
       for file in $(cat $closureInfo/store-paths); do
         echo "copying $file"
         cp --archive $file $out/nix/store
