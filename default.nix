@@ -151,6 +151,7 @@ let
       # unit, but it is required by systemd-nspawn, so we add it too.
       mkdir -p $out/dev
       mkdir -p $out/etc/nginx
+      mkdir -p $out/etc/nsd
       mkdir -p $out/etc/ssl/certs
       mkdir -p $out/nix/store
       mkdir -p $out/proc
