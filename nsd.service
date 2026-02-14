@@ -1,0 +1,42 @@
+# Miniserver NSD unit, based on upstream at
+# https://github.com/NLnetLabs/nsd/blob/master/contrib/nsd.service
+
+[Unit]
+Description=The NSD DNS server
+After=network-online.target nss-lookup.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/nsd -d -P "" -c /etc/nsd/nsd.conf
+ExecReload=/bin/kill -HUP $MAINPID
+PrivateTmp=true
+User=nsd
+Group=nsd
+
+# The settings below are substituted at deployment time by the deploy script.
+RootImage={{ROOT_IMAGE}}
+RootVerity={{ROOT_IMAGE}}.verity
+RootHash={{ROOT_HASH}}
+
+MountAPIVFS=true
+MemoryDenyWriteExecute=true
+
+# Ensure that the process can never gain new priviliges through execve, and that
+# they cannot change kernel tunables.
+NoNewPrivileges=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+
+# Allow binding to priviliged ports (e.g. 53) as non-root user.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+# Note: Setting ProtectSystem= has no advantage, as the erofs filesystem is
+# already read-only. Similarly, ProtectHome= is not useful because the paths it
+# protect do not exist in our filesystem.
+
+BindReadOnlyPaths=/etc/nsd
+BindReadOnlyPaths=/etc/resolv.conf
+
+[Install]
+WantedBy=multi-user.target

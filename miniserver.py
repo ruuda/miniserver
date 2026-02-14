@@ -128,33 +128,18 @@ def deploy_image(
         f"{release_path}/miniserver.img.roothash", "r", encoding="ascii"
     ).readline()
 
+    replacements = {
+        "{{ROOT_IMAGE}}": f"/var/lib/miniserver/store/{release_name}/miniserver.img",
+        "{{ROOT_HASH}}": roothash,
+        "{{RENEW_TIME}}": renew_time,
+    }
+
+    copy_replace_file("nginx.service", f"{target_dir}/nginx.service", replacements)
+    copy_replace_file("lego.service", f"{target_dir}/lego.service", replacements)
+    copy_replace_file("nsd.service", f"{target_dir}/nsd.service", replacements)
+    copy_replace_file("lego.timer", f"{target_dir}/lego.timer", replacements)
     copy_replace_file(
-        "nginx.service",
-        f"{target_dir}/nginx.service",
-        {
-            "{{ROOT_IMAGE}}": f"/var/lib/miniserver/store/{release_name}/miniserver.img",
-            "{{ROOT_HASH}}": roothash,
-        },
-    )
-    copy_replace_file(
-        "lego.service",
-        f"{target_dir}/lego.service",
-        {
-            "{{ROOT_IMAGE}}": f"/var/lib/miniserver/store/{release_name}/miniserver.img",
-            "{{ROOT_HASH}}": roothash,
-        },
-    )
-    copy_replace_file(
-        "lego.timer",
-        f"{target_dir}/lego.timer",
-        {
-            "{{RENEW_TIME}}": renew_time,
-        },
-    )
-    copy_replace_file(
-        "nginx-reload-config.service",
-        f"{target_dir}/nginx-reload-config.service",
-        {},
+        "nginx-reload-config.service", f"{target_dir}/nginx-reload-config.service", {}
     )
 
     # Record when we deployed this version.
@@ -350,6 +335,7 @@ def main() -> None:
                     host,
                     "sudo ln -fs /var/lib/miniserver/current/nginx.service /etc/systemd/system/nginx.service && "
                     "sudo ln -fs /var/lib/miniserver/current/nginx-reload-config.service /etc/systemd/system/nginx-reload-config.service && "
+                    "sudo ln -fs /var/lib/miniserver/current/nsd.service /etc/systemd/system/nsd.service && "
                     "sudo ln -fs /var/lib/miniserver/current/lego.service /etc/systemd/system/lego.service && "
                     "sudo ln -fs /var/lib/miniserver/current/lego.timer /etc/systemd/system/lego.timer && "
                     "sudo systemctl daemon-reload && "
