@@ -124,6 +124,8 @@ def deploy_image(
         f"{release_path}/miniserver.img.verity", f"{target_dir}/miniserver.img.verity"
     )
 
+    sys.exit(1)
+
     roothash = open(
         f"{release_path}/miniserver.img.roothash", "r", encoding="ascii"
     ).readline()
