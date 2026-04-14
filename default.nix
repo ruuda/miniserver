@@ -90,6 +90,7 @@ let
       "--with-http_gzip_static_module"
       "--with-threads"
       "--with-pcre-jit"
+      "--with-ipv6"
       "--add-module=ngx_brotli"
       # If the group is not set explicitly, the configure script will first look
       # for a "nobody" group in /etc/group and then fall back to "nogroup". To
