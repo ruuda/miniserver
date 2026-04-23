@@ -27,6 +27,8 @@ let
   nsd = (pkgs.nsd.override {
     openssl = libressl;
     withSystemd = false;
+    bind8Stats = true;
+    zoneStats = true;
   }).overrideDerivation (oldAttrs: {
     # Until https://github.com/NixOS/nixpkgs/pull/489566 is merged.
     nativeBuildInputs = [ pkgs.pkg-config ];
