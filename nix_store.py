@@ -19,7 +19,7 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 NIX_BIN = "/nix/store/clfkfybsfi0ihp7hjkz4dkgphj7yy0l4-nix-2.28.3/bin"
 
 
-def ensure_pinned_nix_version():
+def ensure_pinned_nix_version() -> None:
     if not os.path.isfile(f"{NIX_BIN}/nix"):
         print("Getting Nix 2.28.3 ...")
         run("nix-store", "--realise", os.path.dirname(NIX_BIN))
@@ -37,7 +37,7 @@ class Package(NamedTuple):
     def __str__(self) -> str:
         return self.name + (f"-{self.version}" if self.version != "" else "")
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         # Overload the comparison operator, to give packages where group=None
         # an ordering with respect to pacakges that do have a group. Without
         # this, sorting a list of packages can fail with a TypeError.

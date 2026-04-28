@@ -10,9 +10,11 @@ Usage:
 
 import json
 import os
+import os.path
 import sys
 
 from typing import Dict
+
 
 result: Dict[str, Dict[str, str]] = {}
 
