@@ -134,17 +134,12 @@ let
   });
 
   # Put together the filesystem by copying from and symlinking to the Nix store.
-  # We need to do this, because unfortunately, "mksquashfs /foo/bar" will create
-  # a file system with bar in the root. So we cannot pass absolute paths to the
-  # store. To work around this, copy all of them, so we can run mksquashfs on
-  # the properly prepared directory. Then for symlinks, they are copied
-  # verbatim, with the path inside the $out directory. So these we symlink
-  # directly to the store, not to the copies in $out. So in the resulting image,
-  # those links will point to the right places. We keep this behavior even after
-  # switching from Squashfs to Erofs.
-  imageDir = pkgs.stdenv.mkDerivation {
-    name = "miniserver-filesystem";
-    buildInputs = [ customNginx lego nsd ];
+  # Later we build this into an image with `mkfs.erofs`. Symlinks are included
+  # verbatim, so we place symlinks into `/nix/store`, not into `$out`. When the
+  # resulting image is mounted, they link to the right places.
+  buildImageDir = { pkg, extraBuildCommand }: pkgs.stdenv.mkDerivation {
+    name = "miniserver-${pkg.name}.fs";
+    buildInputs = [ pkg ];
     buildCommand = ''
       # Although we only need /nix/store and /usr/bin, we need to create the
       # other directories too so systemd can mount the API virtual filesystems
@@ -153,8 +148,6 @@ let
       # because systemd mounts a tmpfs there. /run is not needed by the systemd
       # unit, but it is required by systemd-nspawn, so we add it too.
       mkdir -p $out/dev
-      mkdir -p $out/etc/nginx
-      mkdir -p $out/etc/nsd
       mkdir -p $out/etc/ssl/certs
       mkdir -p $out/nix/store
       mkdir -p $out/proc
@@ -163,18 +156,15 @@ let
       mkdir -p $out/tmp
       mkdir -p $out/usr/bin
       mkdir -p $out/usr/share/ca-certificates
-      mkdir -p $out/var/lib/lego/certificates
       mkdir -p $out/var/log/journal
-      mkdir -p $out/var/log/nginx
       mkdir -p $out/var/tmp
-      mkdir -p $out/var/www/acme
-      touch $out/etc/lego.conf
+
       touch $out/etc/resolv.conf
       ln -s /usr/bin $out/bin
-      ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
-      ln -s ${lego}/bin/lego $out/usr/bin/lego
-      ln -s ${nsd}/bin/nsd $out/usr/bin/nsd
-      closureInfo=${pkgs.closureInfo { rootPaths = [ customNginx lego nsd ]; }}
+
+      ${extraBuildCommand}
+
+      closureInfo=${pkgs.closureInfo { rootPaths = [ pkg ]; }}
       for file in $(cat $closureInfo/store-paths); do
         echo "copying $file"
         cp --archive $file $out/nix/store
@@ -205,8 +195,7 @@ let
       rm *.so
       chmod -w .
 
-      # Also for libidn2, we don't need those locales, we are only running
-      # Nginx.
+      # Also for libidn2, we don't need those locales, we are only running Nginx.
       cd $out${pkgs.libidn2.out}/share/locale
       chmod --recursive +w .
       rm -r *
@@ -214,8 +203,9 @@ let
     '';
   };
 
-  image = pkgs.stdenv.mkDerivation {
-    name = "miniserver.img";
+  buildImage = { pkg, extraBuildCommand }: pkgs.stdenv.mkDerivation rec {
+    name = "miniserver-${pkg.name}.img";
+    imageDir = buildImageDir { inherit pkg extraBuildCommand; };
 
     nativeBuildInputs = [ pkgs.erofs-utils ];
     buildInputs = [ imageDir ];
@@ -223,21 +213,68 @@ let
     # There is no significant size difference between level=6 and level=12,
     # though there is a significant difference in compression time. So we opt
     # for the faster mode.
-    buildCommand = "mkfs.erofs $out ${imageDir} -L miniserver -zlz4hc,level=6";
-  };
-
-in
-  pkgs.stdenv.mkDerivation {
-    name = "miniserver";
-    nativeBuildInputs = [ pkgs.cryptsetup pkgs.python3 ];
     buildCommand =
       ''
-        mkdir -p $out
-        cp ${image} $out/miniserver.img
-        veritysetup format \
-          --uuid=$(python3 ${./deterministic_uuid.py} uuid $out/miniserver.img) \
-          --salt=$(python3 ${./deterministic_uuid.py} salt $out/miniserver.img) \
-          --root-hash-file=$out/miniserver.img.roothash \
-          $out/miniserver.img $out/miniserver.img.verity
+      mkfs.erofs $out ${imageDir} -L miniserver-${pkg.name} -zlz4hc,level=6
       '';
-  }
+  };
+
+  buildImages = images:
+    let
+      buildVerity = img:
+      ''
+        cp ${img} $out/${img.name}
+        veritysetup format \
+          --uuid=$(python3 ${./deterministic_uuid.py} uuid $out/${img.name}) \
+          --salt=$(python3 ${./deterministic_uuid.py} salt $out/${img.name}) \
+          --root-hash-file=$out/${img.name}.roothash \
+          $out/${img.name} $out/${img.name}.verity
+      '';
+    in
+      pkgs.stdenv.mkDerivation {
+    name = "miniserver";
+    nativeBuildInputs = [ pkgs.cryptsetup pkgs.python3 ];
+      buildCommand =
+        ''
+        mkdir -p $out
+        ${builtins.concatStringsSep "\n" (builtins.map buildVerity images)}
+        '';
+    };
+
+  imageNginx = buildImage {
+    pkg = customNginx;
+    extraBuildCommand =
+      ''
+      mkdir -p $out/etc/nginx
+      mkdir -p $out/var/lib/lego/certificates
+      mkdir -p $out/var/log/nginx
+      mkdir -p $out/var/www
+      ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
+      '';
+  };
+
+  imageLego = buildImage {
+    pkg = lego;
+    extraBuildCommand =
+      ''
+      mkdir -p $out/var/lib/lego/certificates
+      mkdir -p $out/var/www/acme
+      touch $out/etc/lego.conf
+      ln -s ${lego}/bin/lego $out/usr/bin/lego
+      '';
+  };
+
+  imageNsd = buildImage {
+    pkg = nsd;
+    extraBuildCommand =
+      ''
+      mkdir -p $out/etc/nsd
+      ln -s ${nsd}/bin/nsd $out/usr/bin/nsd
+      '';
+  };
+in
+  buildImages [
+    imageNginx
+    imageLego
+    imageNsd
+  ]
