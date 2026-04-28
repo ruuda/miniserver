@@ -271,5 +271,13 @@ let
 in
   pkgs.stdenv.mkDerivation {
     name = "miniserver.json";
-    buildCommand = "echo '${miniserverJson}' > $out";
+    nativeBuildInputs = [ pkgs.python3 ];
+    buildCommand =
+      ''
+      python3 ${./build_manifest.py} \
+        nginx=${imageNginx} \
+        lego=${imageLego} \
+        nsd=${imageNsd} \
+        > $out
+      '';
   }
