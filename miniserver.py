@@ -57,10 +57,7 @@ def get_current_manifest() -> Dict[str, ManifestEntry]:
         "default.nix",
     ).rstrip("\n")
     with open(path, "r", encoding="utf-8") as f:
-        return {
-            name: ManifestEntry(**entry)
-            for name, entry in json.load(f).items()
-        }
+        return {name: ManifestEntry(**entry) for name, entry in json.load(f).items()}
 
 
 @contextmanager
@@ -112,12 +109,14 @@ def sshfs(host: str) -> Iterator[str]:
         assert proc.stderr is not None
         if "/var/lib/images: No such file or directory" in proc.stderr.read():
             print("/var/lib/images does not yet exist on the remote host, creating ...")
-            subprocess.run([
-                "ssh",
-                host,
-                "sudo mkdir -p /var/lib/images && ",
-                "sudo chown $USER /var/lib/images",
-            ])
+            subprocess.run(
+                [
+                    "ssh",
+                    host,
+                    "sudo mkdir -p /var/lib/images && ",
+                    "sudo chown $USER /var/lib/images",
+                ]
+            )
             print("Directory created, retry now.")
             sys.exit(1)
 
@@ -249,7 +248,6 @@ def main() -> None:
         print("Missing <host>")
         print(__doc__)
         sys.exit(1)
-
 
     manifest = get_current_manifest()
     pkg_subdirs = [
