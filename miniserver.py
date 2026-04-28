@@ -70,20 +70,58 @@ def sshfs(host: str) -> Iterator[str]:
     directory. Returns the path of that temporary directory.
     """
     tmp_path = f"/tmp/miniserver-{uuid.uuid4()}"
+
     os.makedirs(tmp_path)
+    stat_before = os.stat(tmp_path)
+
     proc = subprocess.Popen(
         ["sshfs", "-f", f"{host}:/var/lib/images", tmp_path],
         stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        encoding="utf-8",
     )
 
-    # Wait up to 10 seconds until the sshfs is mounted.
-    for _ in range(100):
-        fstype = run("stat", "--format", "%T", "--file-system", tmp_path).strip()
-        if fstype == "fuseblk":
-            break
-        sleep_seconds = 0.1
-        time.sleep(sleep_seconds)
+    # Wait up to 10 seconds until the sshfs is mounted and stat-able.
+    is_ok = False
+    for _ in range(200):
+        try:
+            # If the stat output changed from before we tried to mount something
+            # there, that means the mount is now complete.
+            stat_after = os.stat(tmp_path)
+            if stat_after != stat_before:
+                is_ok = True
+                break
 
+        except OSError as exc:
+            # During setup, we get Errno 107, Transport endpoint is not connected.
+            pass
+
+        try:
+            sleep_seconds = 0.05
+            proc.wait(sleep_seconds)
+            break
+
+        except subprocess.TimeoutExpired:
+            # If the wait failed then the process is still running
+            continue
+
+    # If we failed to mount the sshfs because the images directory does not yet
+    # exist on the host, that's something we can easily fix. We need to know
+    # then whether the process exited already.
+    if proc.returncode is not None:
+        assert proc.stderr is not None
+        if "/var/lib/images: No such file or directory" in proc.stderr.read():
+            print("/var/lib/images does not yet exist on the remote host, creating ...")
+            subprocess.run([
+                "ssh",
+                host,
+                "sudo mkdir -p /var/lib/images && ",
+                "sudo chown $USER /var/lib/images",
+            ])
+            print("Directory created, retry now.")
+            sys.exit(1)
+
+    assert is_ok
     yield tmp_path
 
     proc.terminate()
