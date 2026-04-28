@@ -6,7 +6,7 @@ Miniserver -- deploy self-contained erofs images for webserver software
 
 USAGE
 
-    miniserver.py <command> <host>
+    miniserver.py <command> <host>...
 
 COMMANDS
 
@@ -18,7 +18,7 @@ COMMANDS
 
 ARGUMENTS
 
-    <host>    The host to deploy to, must be an ssh hostname.
+    <host>    The hosts to deploy to, must be an ssh hostname.
 """
 
 import json
@@ -250,47 +250,48 @@ def main() -> None:
         print(__doc__)
         sys.exit(1)
 
-    host = args[0]
 
     manifest = get_current_manifest()
     pkg_subdirs = [
         entry.img_store_path.removeprefix("/var/lib/images/")
         for entry in manifest.values()
     ]
-    # Name this "release" after the subdirs, e.g. "nginx/jsbhck lego/fzk56m".
-    # For lack of a better short identifier.
-    release_names = ", ".join(pkg_subdirs)
 
-    if cmd == "deploy":
-        print("Deploying", release_names, "...")
+    for host in args:
+        if cmd == "deploy":
+            print("Connecting ...")
+            with sshfs(host) as tmp_path:
+                for name, entry in manifest.items():
+                    print(f"=> {entry.img_store_path}/{entry.image_file}")
+                    deploy_image(tmp_path, entry)
+                gc_store(
+                    tmp_path,
+                    max_size_bytes=550_000_000,
+                    keep_subdirs=pkg_subdirs,
+                )
 
-        with sshfs(host) as tmp_path:
-            for name, entry in manifest.items():
-                deploy_image(tmp_path, entry)
-            gc_store(
-                tmp_path,
-                max_size_bytes=550_000_000,
-                keep_subdirs=pkg_subdirs,
-            )
+        if cmd == "status":
+            with sshfs(host) as tmp_path:
+                store_size_bytes = get_store_size_bytes(tmp_path)
+                store_size_mb = store_size_bytes / 1e6
+                print(f"Store size: {store_size_mb:,.2f} MB")
+                print("Latest deployment log entries:")
+                try:
+                    with open(f"{tmp_path}/deploy.log", "r", encoding="utf-8") as f:
+                        for line in reversed(f.readlines()[-10:]):
+                            # Cut out the T from the timestamp
+                            # to make it more readable.
+                            print("  ", line[:10], line[11:], end="")
+                except FileNotFoundError:
+                    print("  (deploy log is empty)")
 
-    if cmd == "status":
-        with sshfs(host) as tmp_path:
-            store_size_bytes = get_store_size_bytes(tmp_path)
-            store_size_mb = store_size_bytes / 1e6
-            print(f"Store size: {store_size_mb:,.2f} MB")
-            print("Latest deployment log entries:")
-            with open(f"{tmp_path}/deploy.log", "r", encoding="utf-8") as f:
-                for line in reversed(f.readlines()[-10:]):
-                    # Cut out the T from the timestamp to make it more readable.
-                    print("  ", line[:10], line[11:], end="")
-
-    if cmd == "gc":
-        with sshfs(host) as tmp_path:
-            gc_store(
-                tmp_path,
-                max_size_bytes=550_000_000,
-                keep_subdirs=pkg_subdirs,
-            )
+        if cmd == "gc":
+            with sshfs(host) as tmp_path:
+                gc_store(
+                    tmp_path,
+                    max_size_bytes=550_000_000,
+                    keep_subdirs=pkg_subdirs,
+                )
 
 
 if __name__ == "__main__":
