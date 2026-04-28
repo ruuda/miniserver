@@ -253,6 +253,8 @@ let
       '';
   };
 
+  # TODO: This package brings in OpenSSL in addition to LibreSSL, and also Bash!
+  # Need to get rid of that!
   imageNsd = buildImage {
     label = "miniserver-nsd";
     pkg = nsd;

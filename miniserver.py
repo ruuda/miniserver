@@ -152,7 +152,7 @@ def deploy_image(
 
     # Record when we deployed this version.
     with open(f"{tmp_path}/deploy.log", "a", encoding="utf-8") as deploylog:
-        deploylog.write(f"{now.isoformat()} {target_sub} {entry.image_file}\n")
+        deploylog.write(f"{now.isoformat()}\t{target_sub}\t{entry.image_file}\n")
 
 
 def get_file_size_bytes(path: str) -> int:
@@ -191,7 +191,7 @@ def gc_store(tmp_path: str, max_size_bytes: int, keep_subdirs: List[str]) -> Non
 
     with open(f"{tmp_path}/deploy.log", "r", encoding="utf-8") as f:
         for line in reversed(f.readlines()):
-            time, subdir, pkgname_ = line.strip().split(" ")
+            time, subdir, pkgname_ = line.strip().split()
             if subdir in sizes and subdir not in candidates:
                 candidates[subdir] = sizes[subdir], time
 
@@ -259,7 +259,7 @@ def main() -> None:
 
     for host in args:
         if cmd == "deploy":
-            print("Connecting ...")
+            print(f"Connecting to {host} ...")
             with sshfs(host) as tmp_path:
                 for name, entry in manifest.items():
                     print(f"=> {entry.img_store_path}/{entry.image_file}")
@@ -278,7 +278,7 @@ def main() -> None:
                 print("Latest deployment log entries:")
                 try:
                     with open(f"{tmp_path}/deploy.log", "r", encoding="utf-8") as f:
-                        for line in reversed(f.readlines()[-10:]):
+                        for line in f.readlines()[-10:]:
                             # Cut out the T from the timestamp
                             # to make it more readable.
                             print("  ", line[:10], line[11:], end="")
