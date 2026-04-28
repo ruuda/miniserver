@@ -203,11 +203,14 @@ let
     '';
   };
 
-  buildImage = { pkg, extraBuildCommand }: pkgs.stdenv.mkDerivation rec {
-    name = "miniserver-${pkg.name}.img";
+  buildImage = { label, pkg, extraBuildCommand }:
+  assert builtins.stringLength label <= 15;
+  pkgs.stdenv.mkDerivation rec {
+    name = "${pkg.name}-verity";
+    imageName = "${pkg.name}.img";
     imageDir = buildImageDir { inherit pkg extraBuildCommand; };
 
-    nativeBuildInputs = [ pkgs.erofs-utils ];
+    nativeBuildInputs = [ pkgs.cryptsetup pkgs.erofs-utils pkgs.python3 ];
     buildInputs = [ imageDir ];
 
     # There is no significant size difference between level=6 and level=12,
@@ -215,33 +218,18 @@ let
     # for the faster mode.
     buildCommand =
       ''
-      mkfs.erofs $out ${imageDir} -L miniserver-${pkg.name} -zlz4hc,level=6
+      mkdir -p $out
+      mkfs.erofs $out/${imageName} ${imageDir} -L ${label} -zlz4hc,level=6
+      veritysetup format \
+        --uuid=$(python3 ${./deterministic_uuid.py} uuid $out/${imageName}) \
+        --salt=$(python3 ${./deterministic_uuid.py} salt $out/${imageName}) \
+        --root-hash-file=$out/${imageName}.roothash \
+        $out/${imageName} $out/${imageName}.verity
       '';
   };
 
-  buildImages = images:
-    let
-      buildVerity = img:
-      ''
-        cp ${img} $out/${img.name}
-        veritysetup format \
-          --uuid=$(python3 ${./deterministic_uuid.py} uuid $out/${img.name}) \
-          --salt=$(python3 ${./deterministic_uuid.py} salt $out/${img.name}) \
-          --root-hash-file=$out/${img.name}.roothash \
-          $out/${img.name} $out/${img.name}.verity
-      '';
-    in
-      pkgs.stdenv.mkDerivation {
-    name = "miniserver";
-    nativeBuildInputs = [ pkgs.cryptsetup pkgs.python3 ];
-      buildCommand =
-        ''
-        mkdir -p $out
-        ${builtins.concatStringsSep "\n" (builtins.map buildVerity images)}
-        '';
-    };
-
   imageNginx = buildImage {
+    label = "miniserver-ngx";
     pkg = customNginx;
     extraBuildCommand =
       ''
@@ -254,6 +242,7 @@ let
   };
 
   imageLego = buildImage {
+    label = "miniserver-lego";
     pkg = lego;
     extraBuildCommand =
       ''
@@ -265,6 +254,7 @@ let
   };
 
   imageNsd = buildImage {
+    label = "miniserver-nsd";
     pkg = nsd;
     extraBuildCommand =
       ''
@@ -272,9 +262,14 @@ let
       ln -s ${nsd}/bin/nsd $out/usr/bin/nsd
       '';
   };
+
+  miniserverJson = builtins.toJSON {
+    nginx = { path = imageNginx; };
+    lego = { path = imageLego; };
+    nsd = { path = imageNsd; };
+  };
 in
-  buildImages [
-    imageNginx
-    imageLego
-    imageNsd
-  ]
+  pkgs.stdenv.mkDerivation {
+    name = "miniserver.json";
+    buildCommand = "echo '${miniserverJson}' > $out";
+  }
