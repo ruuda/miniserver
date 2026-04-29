@@ -27,21 +27,21 @@ jobs:
 
       - name: "Dry-run Nginx"
         run: |
-          sudo systemd-nspawn --ephemeral --image $(rcl rq result '
+          sudo systemd-nspawn --ephemeral --machine=nginx --image $(rcl rq result '
             let pkg = input.nginx;
             f"{pkg.nix_store_path}/{pkg.image_file}"
           ') -- /usr/bin/nginx -V
 
       - name: "Dry-run Lego"
         run: |
-          sudo systemd-nspawn --ephemeral --image $(rcl rq result '
+          sudo systemd-nspawn --ephemeral --machine=lego --image $(rcl rq result '
             let pkg = input.lego;
             f"{pkg.nix_store_path}/{pkg.image_file}"
           ') -- /usr/bin/lego --version
 
       - name: "Dry-run NSD"
         run: |
-          sudo systemd-nspawn --ephemeral --image $(rcl rq result '
+          sudo systemd-nspawn --ephemeral --machine=nsd --image $(rcl rq result '
             let pkg = input.nsd;
             f"{pkg.nix_store_path}/{pkg.image_file}"
           ') -- /usr/bin/nsd -v
