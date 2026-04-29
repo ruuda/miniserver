@@ -20,27 +20,27 @@ jobs:
         run: "mkdir -p ~/.local/bin && curl https://github.com/ruuda/rcl/releases/download/v0.13.0/rcl-0.13.0-x86_64-unknown-linux-gnu -o ~/.local/bin/rcl && chmod +x ~/.local/bin/rcl"
 
       - name: "Build"
-        run: "nix build -f default.nix --out-link result"
+        run: "nix build -f default.nix --out-link result && cat result"
 
       - name: "Print reproducibility metadata"
         run: "for d in $(rcl rq result '[for _, pkg in input: pkg.nix_store_path]'); do sha256sum $d/*; done"
 
       - name: "Dry-run Nginx"
-        run: |
+        run: >
           sudo systemd-nspawn --ephemeral --machine=nginx --image $(rcl rq result '
             let pkg = input.nginx;
             f"{pkg.nix_store_path}/{pkg.image_file}"
           ') -- /usr/bin/nginx -V
 
       - name: "Dry-run Lego"
-        run: |
+        run: >
           sudo systemd-nspawn --ephemeral --machine=lego --image $(rcl rq result '
             let pkg = input.lego;
             f"{pkg.nix_store_path}/{pkg.image_file}"
           ') -- /usr/bin/lego --version
 
       - name: "Dry-run NSD"
-        run: |
+        run: >
           sudo systemd-nspawn --ephemeral --machine=nsd --image $(rcl rq result '
             let pkg = input.nsd;
             f"{pkg.nix_store_path}/{pkg.image_file}"
