@@ -37,7 +37,8 @@ information about the images built.
       f"{pkg.nix_store_path}/{pkg.image_file}"
     ') -- /usr/bin/nsd -v
 
-An example manifest:
+An example manifest, the output of the build which describes the images built,
+and their metadata:
 
 ```json
 {
@@ -89,6 +90,7 @@ images to servers. It will:
  * Create `/var/lib/images` on a target machine to hold deployed images.
  * Copy the current images to the server over `sshfs` into a directories named
    after the current version's Nix hash.
+ * The target paths on the hosts are part of the manifest, at `img_store_path`.
 
 To install or update:
 
