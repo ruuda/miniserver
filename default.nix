@@ -275,10 +275,25 @@ let
       '';
   };
 
+  imagePostgres = buildImage rec {
+    label = "miniserver-pg";
+    pkg = pkgs.postgresql_18_jit;
+    extraBuildCommand =
+      ''
+      mkdir -p $out/var/lib/postgres/data
+      mkdir -p $out/var/log/postgres
+      mkdir -p $out/run/postgres
+      touch $out/var/lib/postgres/data/pg_hba.conf
+      touch $out/var/lib/postgres/data/postgresql.conf
+      ln -s ${pkg}/bin/{initdb,postgres} $out/usr/bin
+      '';
+  };
+
   miniserverJson = builtins.toJSON {
-    nginx = { path = imageNginx; };
     lego = { path = imageLego; };
+    nginx = { path = imageNginx; };
     nsd = { path = imageNsd; };
+    postgres = { path = imagePostgres; };
   };
 in
   pkgs.stdenv.mkDerivation {
@@ -287,9 +302,10 @@ in
     buildCommand =
       ''
       python3 ${./build_manifest.py} \
-        nginx=${imageNginx} \
         lego=${imageLego} \
+        nginx=${imageNginx} \
         nsd=${imageNsd} \
+        postgres=${imagePostgres} \
         > $out
       '';
   }
