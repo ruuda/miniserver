@@ -158,78 +158,84 @@ let
   # Later we build this into an image with `mkfs.erofs`. Symlinks are included
   # verbatim, so we place symlinks into `/nix/store`, not into `$out`. When the
   # resulting image is mounted, they link to the right places.
-  buildImageDir = { pkg, extraBuildCommand }: pkgs.stdenv.mkDerivation {
-    name = "miniserver-${pkg.name}.fs";
-    buildInputs = [ pkg ];
-    buildCommand = ''
-      # Although we only need /nix/store and /usr/bin, we need to create the
-      # other directories too so systemd can mount the API virtual filesystems
-      # there, when the image is used. For /var, for systemd-nspawn only /var is
-      # sufficient, but in a unit with PrivateTmp=true, we also need /var/tmp,
-      # because systemd mounts a tmpfs there. /run is not needed by the systemd
-      # unit, but it is required by systemd-nspawn, so we add it too.
-      mkdir -p $out/dev
-      mkdir -p $out/etc/ssl/certs
-      mkdir -p $out/nix/store
-      mkdir -p $out/proc
-      mkdir -p $out/run
-      mkdir -p $out/sys
-      mkdir -p $out/tmp
-      mkdir -p $out/usr/bin
-      mkdir -p $out/usr/share/ca-certificates
-      mkdir -p $out/var/log/journal
-      mkdir -p $out/var/tmp
+  buildImageDir = { pkg, extraPackages, extraBuildCommand }:
+    let
+      inputs = [ pkg ] ++ extraPackages;
+    in
+      pkgs.stdenv.mkDerivation {
+        name = "miniserver-${pkg.name}.fs";
+        buildInputs = inputs;
+        buildCommand = ''
+          # Although we only need /nix/store and /usr/bin, we need to create the
+          # other directories too so systemd can mount the API virtual filesystems
+          # there, when the image is used. For /var, for systemd-nspawn only /var is
+          # sufficient, but in a unit with PrivateTmp=true, we also need /var/tmp,
+          # because systemd mounts a tmpfs there. /run is not needed by the systemd
+          # unit, but it is required by systemd-nspawn, so we add it too.
+          mkdir -p $out/dev
+          mkdir -p $out/etc/ssl/certs
+          mkdir -p $out/nix/store
+          mkdir -p $out/proc
+          mkdir -p $out/run
+          mkdir -p $out/sys
+          mkdir -p $out/tmp
+          mkdir -p $out/usr/bin
+          mkdir -p $out/usr/share/ca-certificates
+          mkdir -p $out/var/log/journal
+          mkdir -p $out/var/tmp
 
-      touch $out/etc/resolv.conf
-      ln -s /usr/bin $out/bin
+          touch $out/etc/resolv.conf
+          touch $out/etc/passwd
+          touch $out/etc/group
+          ln -s /usr/bin $out/bin
 
-      ${extraBuildCommand}
+          ${extraBuildCommand}
 
-      closureInfo=${pkgs.closureInfo { rootPaths = [ pkg ]; }}
-      for file in $(cat $closureInfo/store-paths); do
-        echo "copying $file"
-        cp --archive $file $out/nix/store
-      done
+          closureInfo=${pkgs.closureInfo { rootPaths = inputs; }}
+          for file in $(cat $closureInfo/store-paths); do
+            echo "copying $file"
+            cp --archive $file $out/nix/store
+          done
 
-      # Slim down the glibc installation by removing unused locale data. We do
-      # this here, and not in the glibc package, to avoid rebuilding everything
-      # that depends on glibc. We need to make the containing directories
-      # writable to be able to remove files from them.
-      cd $out${pkgs.glibc}/share
-      chmod --recursive +w .
+          # Slim down the glibc installation by removing unused locale data. We do
+          # this here, and not in the glibc package, to avoid rebuilding everything
+          # that depends on glibc. We need to make the containing directories
+          # writable to be able to remove files from them.
+          cd $out${pkgs.glibc}/share
+          chmod --recursive +w .
 
-      rm -fr locale
-      mv i18n/locales/C i18n/locales_C
-      rm i18n/locales/*
-      mv i18n/locales_C i18n/locales/C
+          rm -fr locale
+          mv i18n/locales/C i18n/locales_C
+          rm i18n/locales/*
+          mv i18n/locales_C i18n/locales/C
 
-      # Delete all the charmaps, they consume a lot of space, and we do not use
-      # them.
-      rm i18n/charmaps/*.gz
+          # Delete all the charmaps, they consume a lot of space, and we do not use
+          # them.
+          rm i18n/charmaps/*.gz
 
-      chmod --recursive -w .
+          chmod --recursive -w .
 
-      # Delete the gconv shared objects related to locales, the programs we run
-      # do not use iconv.
-      cd $out${pkgs.glibc}/lib/gconv
-      chmod +w .
-      rm *.so
-      chmod -w .
+          # Delete the gconv shared objects related to locales, the programs we run
+          # do not use iconv.
+          cd $out${pkgs.glibc}/lib/gconv
+          chmod +w .
+          rm *.so
+          chmod -w .
 
-      # Also for libidn2, we don't need those locales, we are only running Nginx.
-      cd $out${pkgs.libidn2.out}/share/locale
-      chmod --recursive +w .
-      rm -r *
-      chmod -w .
-    '';
-  };
+          # Also for libidn2, we don't need those locales, we are only running Nginx.
+          cd $out${pkgs.libidn2.out}/share/locale
+          chmod --recursive +w .
+          rm -r *
+          chmod -w .
+        '';
+      };
 
-  buildImage = { label, pkg, extraBuildCommand }:
+  buildImage = { label, pkg, extraBuildCommand, extraPackages ? [] }:
   assert builtins.stringLength label <= 15;
   pkgs.stdenv.mkDerivation rec {
     name = "${pkg.name}-verity";
     imageName = "${pkg.name}.img";
-    imageDir = buildImageDir { inherit pkg extraBuildCommand; };
+    imageDir = buildImageDir { inherit pkg extraPackages extraBuildCommand; };
 
     nativeBuildInputs = [ pkgs.cryptsetup pkgs.erofs-utils pkgs.jq pkgs.python3 ];
     buildInputs = [ imageDir ];
@@ -237,7 +243,7 @@ let
     # Make Nix dump the details of the closure of the packages as part of the
     # NIX_ATTRS_JSON_FILE.
     __structuredAttrs = true;
-    exportReferencesGraph.pkgClosure = [ pkg ];
+    exportReferencesGraph.pkgClosure = [ pkg ] ++ extraPackages;
 
     # There is no significant size difference between level=6 and level=12,
     # though there is a significant difference in compression time. So we opt
@@ -304,10 +310,17 @@ let
       mkdir -p $out/var/lib/postgres/data
       mkdir -p $out/var/log/postgres
       mkdir -p $out/run/postgres
+      mkdir -p $out/usr/lib
       touch $out/var/lib/postgres/data/pg_hba.conf
       touch $out/var/lib/postgres/data/postgresql.conf
       ln -s ${pkg}/bin/* $out/usr/bin
+      ln -s ${pkg}/lib/* $out/usr/lib
+      ln -s ${pkg}/share/postgresql $out/usr/share
+      ln -s ${pkgs.bash}/bin/bash $out/usr/bin/sh
       '';
+
+    # Unfortunately, initdb invokes /bin/sh, so we need a shell.
+    extraPackages = [ pkgs.bash ];
   };
 
   miniserverJson = builtins.toJSON {
