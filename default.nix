@@ -34,6 +34,27 @@ let
     nativeBuildInputs = [ pkgs.pkg-config ];
   });
 
+  # Reconfigure Postgres to not be so heavy, we don't use all this stuff anyway.
+  # With extensions or JIT, initdb cannot find the postgres binary, but we don't
+  # care so much about JIT at this point.
+  postgres = (pkgs.postgresql_18.override {
+    curlSupport = false;
+    gssSupport = false;
+    jitSupport = false;
+    ldapSupport = false;
+    nlsSupport = false;
+    numaSupport = false;
+    pamSupport = false;
+    perlSupport = false;
+    pythonSupport = false;
+    tclSupport = false;
+    selinuxSupport = false;
+    # We could slim it down further by omitting systemd support, but alright,
+    # this is fairly heavy already, let's just have it.
+    systemdSupport = true;
+    uringSupport = true;
+  });
+
   lightNginx = pkgs.nginxMainline.override {
     # Remove dependency on libgd; It brings in a lot of transitive dependencies
     # that we don't need (fontconfig, image codecs, etc.). Also disable other
@@ -277,7 +298,7 @@ let
 
   imagePostgres = buildImage rec {
     label = "miniserver-pg";
-    pkg = pkgs.postgresql_18_jit;
+    pkg = postgres;
     extraBuildCommand =
       ''
       mkdir -p $out/var/lib/postgres/data
@@ -285,7 +306,7 @@ let
       mkdir -p $out/run/postgres
       touch $out/var/lib/postgres/data/pg_hba.conf
       touch $out/var/lib/postgres/data/postgresql.conf
-      ln -s ${pkg}/bin/{initdb,postgres} $out/usr/bin
+      ln -s ${pkg}/bin/* $out/usr/bin
       '';
   };
 
