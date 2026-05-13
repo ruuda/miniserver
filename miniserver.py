@@ -176,7 +176,7 @@ def gc_store(tmp_path: str, max_size_bytes: int, keep_subdirs: List[str]) -> Non
         if not os.path.isdir(pkg_path):
             continue
         for version in os.listdir(pkg_path):
-            version_path = os.path.join(tmp_path, version)
+            version_path = os.path.join(pkg_path, version)
             size_bytes = sum(
                 get_file_size_bytes(os.path.join(dirpath, fname))
                 for dirpath, _dirnames, fnames in os.walk(version_path)
@@ -225,8 +225,12 @@ def gc_store(tmp_path: str, max_size_bytes: int, keep_subdirs: List[str]) -> Non
         f"GC: Deleting the {len(to_delete)} least recently deployed images "
         f"to free up {freed_mb:,.2f} MB of space."
     )
+
+    max_len = max(len(subdir) for subdir, _size in to_delete)
+
     for subdir, size in to_delete:
-        print(f"  {subdir} ({size / 1e6:,.2f} MB)", end="")
+        subdir_pad = subdir.ljust(max_len)
+        print(f"  {subdir_pad} ({size / 1e6:,.2f} MB)", end="")
         shutil.rmtree(os.path.join(tmp_path, subdir))
         print(" deleted")
 
