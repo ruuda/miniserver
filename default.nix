@@ -21,6 +21,7 @@ let
   libressl = pkgs.libressl;
 
   kanidm = pkgs.kanidm_1_10;
+  rauthy = pkgs.rauthy;
 
   lego = pkgs.lego.overrideAttrs (old: {
     patches = [ ./patches/0001-Allow-group-owner-to-read-certificates.patch ];
@@ -338,12 +339,24 @@ let
       '';
   };
 
+  imageRauthy = buildImage {
+    label = "miniserver-rth";
+    pkg = rauthy;
+    extraBuildCommand =
+      ''
+      mkdir -p $out/etc/rauthy
+      mkdir -p $out/var/lib/rauthy
+      ln -s ${rauthy}/bin/rauthy $out/usr/bin/rauthy
+      '';
+  };
+
   miniserverJson = builtins.toJSON {
     kanidm = { path = imageKanidm; };
     lego = { path = imageLego; };
     nginx = { path = imageNginx; };
     nsd = { path = imageNsd; };
     postgres = { path = imagePostgres; };
+    rauthy = { path = imageRauthy; };
   };
 in
   pkgs.stdenv.mkDerivation {
@@ -357,6 +370,7 @@ in
         nginx=${imageNginx} \
         nsd=${imageNsd} \
         postgres=${imagePostgres} \
+        rauthy=${imageRauthy} \
         > $out
       '';
   }
