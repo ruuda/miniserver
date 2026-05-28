@@ -345,6 +345,7 @@ let
     extraBuildCommand =
       ''
       mkdir -p $out/etc/rauthy
+      mkdir -p $out/run/rauthy
       mkdir -p $out/var/lib/rauthy
       ln -s ${rauthy}/bin/rauthy $out/usr/bin/rauthy
       '';
