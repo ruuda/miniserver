@@ -20,7 +20,6 @@ let
   # Nixpkgs when it is outdated, or update here when needed.
   libressl = pkgs.libressl;
 
-  kanidm = pkgs.kanidm_1_10;
   rauthy = pkgs.rauthy;
 
   lego = pkgs.lego.overrideAttrs (old: {
@@ -327,19 +326,6 @@ let
     extraPackages = [ pkgs.bash ];
   };
 
-  imageKanidm = buildImage {
-    label = "miniserver-kdm";
-    pkg = kanidm;
-    extraBuildCommand =
-      ''
-      mkdir -p $out/etc/kanidm
-      mkdir -p $out/run/kanidm
-      mkdir -p $out/var/lib/kanidm
-      mkdir -p $out/var/lib/lego/certificates
-      ln -s ${kanidm}/bin/kanidmd $out/usr/bin/kanidmd
-      '';
-  };
-
   imageRauthy = buildImage {
     label = "miniserver-rth";
     pkg = rauthy;
@@ -353,7 +339,6 @@ let
   };
 
   miniserverJson = builtins.toJSON {
-    kanidm = { path = imageKanidm; };
     lego = { path = imageLego; };
     nginx = { path = imageNginx; };
     nsd = { path = imageNsd; };
@@ -367,7 +352,6 @@ in
     buildCommand =
       ''
       python3 ${./build_manifest.py} \
-        kanidm=${imageKanidm} \
         lego=${imageLego} \
         nginx=${imageNginx} \
         nsd=${imageNsd} \
