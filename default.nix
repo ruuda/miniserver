@@ -10,7 +10,11 @@
   # repository is stored in a separate file (as a fetchTarball Nix expression).
   # We then fetch that revision from Github and import it. The revision should
   # periodically be updated to be the last commit of Nixpkgs.
-  (import ./nixpkgs-pinned.nix) {}
+  (import ./nixpkgs-pinned.nix) {
+    # Outline is BSL-licensed, we need to explicitly acknowledge this.
+    # We're only using it for internal use so it's okay.
+    config.allowUnfree = true;
+  }
 }:
 
 let
@@ -20,6 +24,7 @@ let
   # Nixpkgs when it is outdated, or update here when needed.
   libressl = pkgs.libressl;
 
+  outline = pkgs.outline;
   rauthy = pkgs.rauthy;
   valkey = pkgs.valkey;
 
@@ -269,7 +274,7 @@ let
       '';
   };
 
-  imageNginx = buildImage {
+  imageNginx = buildImage rec {
     label = "miniserver-ngx";
     pkg = customNginx;
     extraBuildCommand =
@@ -278,11 +283,11 @@ let
       mkdir -p $out/var/lib/lego/certificates
       mkdir -p $out/var/log/nginx
       mkdir -p $out/var/www
-      ln -s ${customNginx}/bin/nginx $out/usr/bin/nginx
+      ln -s ${pkg}/bin/nginx $out/usr/bin/nginx
       '';
   };
 
-  imageLego = buildImage {
+  imageLego = buildImage rec {
     label = "miniserver-lego";
     pkg = lego;
     extraBuildCommand =
@@ -290,19 +295,19 @@ let
       mkdir -p $out/var/lib/lego/certificates
       mkdir -p $out/var/www/acme
       touch $out/etc/lego.conf
-      ln -s ${lego}/bin/lego $out/usr/bin/lego
+      ln -s ${pkg}/bin/lego $out/usr/bin/lego
       '';
   };
 
   # TODO: This package brings in OpenSSL in addition to LibreSSL, and also Bash!
   # Need to get rid of that!
-  imageNsd = buildImage {
+  imageNsd = buildImage rec {
     label = "miniserver-nsd";
     pkg = nsd;
     extraBuildCommand =
       ''
       mkdir -p $out/etc/nsd
-      ln -s ${nsd}/bin/nsd $out/usr/bin/nsd
+      ln -s ${pkg}/bin/nsd $out/usr/bin/nsd
       '';
   };
 
@@ -327,7 +332,22 @@ let
     extraPackages = [ pkgs.bash ];
   };
 
-  imageRauthy = buildImage {
+  imageOutline = buildImage rec {
+    label = "miniserver-otln";
+    pkg = outline;
+    extraBuildCommand =
+      ''
+      mkdir -p $out/etc/outline
+      mkdir -p $out/run/outline
+      mkdir -p $out/var/lib/outline
+      ln -s ${pkg}/bin/outline-server $out/usr/bin/outline-server
+
+      # Outline binaries try to read /build, ensure it exists inside the chroot.
+      ln -s ${pkg}/share/outline/build $out/build
+      '';
+  };
+
+  imageRauthy = buildImage rec {
     label = "miniserver-rth";
     pkg = rauthy;
     extraBuildCommand =
@@ -335,7 +355,7 @@ let
       mkdir -p $out/etc/rauthy
       mkdir -p $out/run/rauthy
       mkdir -p $out/var/lib/rauthy
-      ln -s ${rauthy}/bin/rauthy $out/usr/bin/rauthy
+      ln -s ${pkg}/bin/rauthy $out/usr/bin/rauthy
       '';
   };
 
@@ -351,15 +371,6 @@ let
       ln -s ${valkey}/bin/valkey-server $out/usr/bin/valkey-server
       '';
   };
-
-  miniserverJson = builtins.toJSON {
-    lego = { path = imageLego; };
-    nginx = { path = imageNginx; };
-    nsd = { path = imageNsd; };
-    postgres = { path = imagePostgres; };
-    rauthy = { path = imageRauthy; };
-    valkey = { path = imageValkey; };
-  };
 in
   pkgs.stdenv.mkDerivation {
     name = "miniserver.json";
@@ -370,6 +381,7 @@ in
         lego=${imageLego} \
         nginx=${imageNginx} \
         nsd=${imageNsd} \
+        outline=${imageOutline} \
         postgres=${imagePostgres} \
         rauthy=${imageRauthy} \
         valkey=${imageValkey} \
