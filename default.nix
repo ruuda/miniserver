@@ -21,6 +21,7 @@ let
   libressl = pkgs.libressl;
 
   rauthy = pkgs.rauthy;
+  valkey = pkgs.valkey;
 
   lego = pkgs.lego.overrideAttrs (old: {
     patches = [ ./patches/0001-Allow-group-owner-to-read-certificates.patch ];
@@ -338,12 +339,26 @@ let
       '';
   };
 
+  # TODO: I would really prefer to run Redict, but it's been abandoned in Nixpkgs.
+  # It's trivial to build, so maybe I can revive and adopt the package.
+  imageValkey = buildImage {
+    label = "miniserver-vkey";
+    pkg = valkey;
+    extraBuildCommand =
+      ''
+      mkdir -p $out/etc/valkey
+      mkdir -p $out/var/lib/valkey
+      ln -s ${valkey}/bin/valkey-server $out/usr/bin/valkey-server
+      '';
+  };
+
   miniserverJson = builtins.toJSON {
     lego = { path = imageLego; };
     nginx = { path = imageNginx; };
     nsd = { path = imageNsd; };
     postgres = { path = imagePostgres; };
     rauthy = { path = imageRauthy; };
+    valkey = { path = imageValkey; };
   };
 in
   pkgs.stdenv.mkDerivation {
@@ -357,6 +372,7 @@ in
         nsd=${imageNsd} \
         postgres=${imagePostgres} \
         rauthy=${imageRauthy} \
+        valkey=${imageValkey} \
         > $out
       '';
   }
