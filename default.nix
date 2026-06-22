@@ -24,6 +24,7 @@ let
   # Nixpkgs when it is outdated, or update here when needed.
   libressl = pkgs.libressl;
 
+  forgejo = pkgs.forgejo;
   outline = pkgs.outline;
   rauthy = pkgs.rauthy;
   valkey = pkgs.valkey;
@@ -311,6 +312,23 @@ let
       '';
   };
 
+  imageForgejo = buildImage rec {
+    label = "miniserver-fj";
+    pkg = forgejo;
+    extraBuildCommand =
+      ''
+      mkdir -p $out/var/lib/forgejo
+      mkdir -p $out/var/log/forgejo
+      mkdir -p $out/etc/forgejo
+      mkdir -p $out/home/git
+      ln -s ${pkg}/bin/forgejo $out/usr/bin
+      ln -s ${pkgs.git}/bin/* $out/usr/bin
+      ln -s ${pkgs.git-lfs}/bin/* $out/usr/bin
+      '';
+
+      extraPackages = with pkgs; [ git git-lfs ];
+  };
+
   imagePostgres = buildImage rec {
     label = "miniserver-pg";
     pkg = postgres;
@@ -387,6 +405,7 @@ in
     buildCommand =
       ''
       python3 ${./build_manifest.py} \
+        forgejo=${imageForgejo} \
         lego=${imageLego} \
         nginx=${imageNginx} \
         nsd=${imageNsd} \
