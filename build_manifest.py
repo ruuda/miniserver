@@ -16,13 +16,13 @@ import sys
 from typing import Dict
 
 
-result: Dict[str, Dict[str, str]] = {}
+result: Dict[str, Dict[str, str | int]] = {}
 
 for arg in sys.argv[1:]:
     name, store_path = arg.split("=", maxsplit=1)
 
     id_ = store_path.removeprefix("/nix/store/").split("-")[0]
-    entry: Dict[str, str] = {
+    entry: Dict[str, str | int] = {
         "id": id_,
         "nix_store_path": store_path,
         # For convenience, also output the path on the server where we store the
@@ -33,14 +33,17 @@ for arg in sys.argv[1:]:
     }
 
     for fname in os.listdir(store_path):
+        full_path = os.path.join(store_path, fname)
+
         if fname.endswith(".img"):
             entry["image_file"] = fname
+            entry["image_size_bytes"] = os.stat(full_path).st_size
 
         if fname.endswith(".verity"):
             entry["verity_file"] = fname
 
         if fname.endswith(".roothash"):
-            with open(os.path.join(store_path, fname), "r", encoding="ascii") as f:
+            with open(full_path, "r", encoding="ascii") as f:
                 entry["verity_roothash"] = f.read().strip()
 
         result[name] = entry

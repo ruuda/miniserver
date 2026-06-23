@@ -210,8 +210,13 @@ let
     imageName = "${pkg.name}.img";
     imageDir = buildImageDir { inherit pkg extraBuildCommand; };
 
-    nativeBuildInputs = [ pkgs.cryptsetup pkgs.erofs-utils pkgs.python3 ];
+    nativeBuildInputs = [ pkgs.cryptsetup pkgs.erofs-utils pkgs.jq pkgs.python3 ];
     buildInputs = [ imageDir ];
+
+    # Make Nix dump the details of the closure of the packages as part of the
+    # NIX_ATTRS_JSON_FILE.
+    __structuredAttrs = true;
+    exportReferencesGraph.pkgClosure = [ pkg ] ++ extraPackages;
 
     # There is no significant size difference between level=6 and level=12,
     # though there is a significant difference in compression time. So we opt
@@ -225,6 +230,11 @@ let
         --salt=$(python3 ${./deterministic_uuid.py} salt $out/${imageName}) \
         --root-hash-file=$out/${imageName}.roothash \
         $out/${imageName} $out/${imageName}.verity
+
+      # Include closure information about the packages stored in the filesystem
+      # image. We can use this to detect changes between version bumps, and to
+      # build an SBOM.
+      jq .pkgClosure $NIX_ATTRS_JSON_FILE > $out/packages.json
       '';
   };
 
