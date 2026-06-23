@@ -167,7 +167,7 @@
         nativeBuildInputs = [ pkgs.python3 ];
         buildCommand = ''
           python3 ${./build_manifest.py} \
-            ${name} ${image} \
+            ${name} ${pkg.version} ${image} \
             ${pin.commit} ${pin.commit_date} > $out
         '';
       };

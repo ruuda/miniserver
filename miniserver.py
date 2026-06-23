@@ -45,6 +45,7 @@ from nix_store import NIX_BIN, ensure_pinned_nix_version, run
 
 class Manifest(NamedTuple):
     name: str
+    version: str
     id: str
     nix_store_path: str
     img_store_path: str

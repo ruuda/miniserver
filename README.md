@@ -41,6 +41,7 @@ and its metadata:
 ```json
 {
   "name": "nginx",
+  "version": "1.31.0",
   "id": "hsr674bfgqcmzdiw46jjpa99jxfkgn14",
   "nix_store_path": "/nix/store/hsr674bfgqcmzdiw46jjpa99jxfkgn14-nginx-1.31.0-image",
   "img_store_path": "/var/lib/images/nginx/hsr674",

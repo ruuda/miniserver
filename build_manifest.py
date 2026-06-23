@@ -5,7 +5,7 @@
 Write metadata about an EROFS image into a json manifest.
 
 Usage:
-    build_manifest.py <name> /nix/store/... <nixpkgs-commit> <nixpkgs-date> $out
+    build_manifest.py <name> <version> /nix/store/... <nixpkgs-commit> <nixpkgs-date> $out
 """
 
 import json
@@ -16,11 +16,13 @@ import sys
 from typing import Dict
 
 name = sys.argv[1]
-store_path = sys.argv[2]
+version = sys.argv[2]
+store_path = sys.argv[3]
 
 id_ = store_path.removeprefix("/nix/store/").split("-")[0]
 entry: Dict[str, str | int] = {
     "name": name,
+    "version": version,
     "id": id_,
     "nix_store_path": store_path,
     # For convenience, also output the path on the server where we store the
@@ -44,8 +46,8 @@ for fname in os.listdir(store_path):
         with open(full_path, "r", encoding="ascii") as f:
             entry["verity_roothash"] = f.read().strip()
 
-entry["nixpkgs_commit"] = sys.argv[3]
-entry["nixpkgs_date"] = sys.argv[4]
+entry["nixpkgs_commit"] = sys.argv[4]
+entry["nixpkgs_date"] = sys.argv[5]
 
 json.dump(entry, sys.stdout, indent=2)
 sys.stdout.write("\n")
