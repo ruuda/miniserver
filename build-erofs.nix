@@ -5,7 +5,9 @@
 # it under the terms of the GNU General Public License version 3. A copy
 # of the License is available in the root of the repository.
 
-{ pkgs }: rec {
+{ pin }: rec {
+  pkgs = import pin.tarball {};
+
   # Put together the filesystem by copying from and symlinking to the Nix store.
   # Later we build this into an image with `mkfs.erofs`. Symlinks are included
   # verbatim, so we place symlinks into `/nix/store`, not into `$out`. When the

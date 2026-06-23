@@ -6,8 +6,9 @@
 # of the License is available in the root of the repository.
 
 let
-  pkgs = (import ./nixpkgs-pinned.nix) {};
-  erofs = (import ./../../build-erofs.nix) { inherit pkgs; };
+  pin = import ./nixpkgs-pinned.nix;
+  pkgs = import pin.tarball {};
+  erofs = (import ./../../build-erofs.nix) { inherit pin; };
 in
   # TODO: I would really prefer to run Redict, but it's been abandoned in Nixpkgs.
   # It's trivial to build, so maybe I can revive and adopt the package.

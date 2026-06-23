@@ -6,12 +6,13 @@
 # of the License is available in the root of the repository.
 
 let
-  pkgs = (import ./nixpkgs-pinned.nix) {
+  pin = import ./nixpkgs-pinned.nix;
+  pkgs = import pin.tarball {
     # Outline is BSL-licensed, we need to explicitly acknowledge this.
     # We're only using it for internal use so it's okay.
     config.allowUnfree = true;
   };
-  erofs = (import ./../../build-erofs.nix) { inherit pkgs; };
+  erofs = (import ./../../build-erofs.nix) { inherit pin; };
 in
   erofs.buildImageManifest rec {
     name = "outline";

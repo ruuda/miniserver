@@ -6,8 +6,9 @@
 # of the License is available in the root of the repository.
 
 let
-  pkgs = (import ./nixpkgs-pinned.nix) {};
-  erofs = (import ./../../build-erofs.nix) { inherit pkgs; };
+  pin = import ./nixpkgs-pinned.nix;
+  pkgs = import pin.tarball {};
+  erofs = (import ./../../build-erofs.nix) { inherit pin; };
 
   # Reconfigure Postgres to not be so heavy, we don't use all this stuff anyway.
   # With extensions or JIT, initdb cannot find the postgres binary, but we don't
