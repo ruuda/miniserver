@@ -15,7 +15,6 @@ import sys
 
 from typing import Dict
 
-
 result: Dict[str, Dict[str, str | int]] = {}
 
 for arg in sys.argv[1:]:

@@ -23,9 +23,9 @@ import textwrap
 import urllib.request
 import uuid
 
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Union
+from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Union
 
-from nix_store import get_build_requisites, get_runtime_requisites, run
+from nix_store import ClosureInfo, Package, get_closure_info, run
 from nix_store import NIX_BIN, ensure_pinned_nix_version
 from nix_diff import Addition, Change, Diff, Removal, diff, format_difflist
 
@@ -112,6 +112,30 @@ class Diffs(NamedTuple):
         return len(self.build) + len(self.runtime)
 
 
+def get_union_closure_info(manifest_fname: str) -> ClosureInfo:
+    """
+    For a given manfiest file, load the closure info of each package in it,
+    and union those.
+    """
+    with open(manifest_fname, "r", encoding="utf-8") as f:
+        manifest: Dict[str, Dict[str, Any]] = json.load(f)
+
+    runtime: Set[Package] = set()
+    build: Set[Package] = set()
+
+    for pkg_name, pkg in manifest.items():
+        packages_fname = os.path.join(pkg["nix_store_path"], "packages.json")
+        closure_info = get_closure_info(packages_fname)
+        runtime.update(closure_info.runtime)
+        build.update(closure_info.build)
+
+    # A package may be a build dependency for some packages but a runtime
+    # dependency for others, we don't want to list those twice.
+    build -= runtime
+
+    return ClosureInfo(runtime, build)
+
+
 def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -> Diffs:
     """
     Replace nixpkgs-pinned.nix with a newer version that fetches the latest
@@ -161,19 +185,11 @@ def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -
         ]
     )
 
-    befores_build = get_build_requisites(before_path)
-    befores_runtime = get_runtime_requisites(before_path)
+    before_info = get_union_closure_info(before_path)
+    after_info = get_union_closure_info(after_path)
 
-    afters_build = get_build_requisites(after_path)
-    afters_runtime = get_runtime_requisites(after_path)
-
-    # We only want to show dependencies once, if it already is a runtime
-    # dependency, don't show it under build-time dependencies too.
-    befores_build -= befores_runtime
-    afters_build -= afters_runtime
-
-    diffs_build = list(diff(sorted(befores_build), sorted(afters_build)))
-    diffs_runtime = list(diff(sorted(befores_runtime), sorted(afters_runtime)))
+    diffs_build = list(diff(sorted(before_info.build), sorted(after_info.build)))
+    diffs_runtime = list(diff(sorted(before_info.runtime), sorted(after_info.runtime)))
     return Diffs(diffs_build, diffs_runtime)
 
 

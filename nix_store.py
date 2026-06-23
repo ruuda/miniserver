@@ -13,7 +13,6 @@ import sys
 
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 
-
 # Although nix-prefetch-url was always broken, there is a newer 'nix flake
 # prefech' that we can use instead.
 NIX_BIN = "/nix/store/clfkfybsfi0ihp7hjkz4dkgphj7yy0l4-nix-2.28.3/bin"
@@ -191,7 +190,7 @@ def run(*cmd: str) -> str:
     return result.stdout.decode("utf-8")
 
 
-def get_packages_from_derivations(drv_paths: List[str]) -> Iterable[Package]:
+def get_packages_from_derivations(drv_paths: Set[str]) -> Iterable[Package]:
     """
     Extract package names and versions from each of the derivation files.
     """
@@ -231,24 +230,42 @@ def get_packages_from_derivations(drv_paths: List[str]) -> Iterable[Package]:
             yield package
 
 
-def get_runtime_requisites(path: str) -> Set[Package]:
-    """
-    Return the closure of runtime dependencies of the store path.
-    """
-    runtime_deps = run(
-        f"{NIX_BIN}/nix-store", "--query", "--requisites", path
-    ).splitlines()
-    derivations = run(
-        f"{NIX_BIN}/nix-store", "--query", "--deriver", *runtime_deps
-    ).splitlines()
-    return set(get_packages_from_derivations(derivations))
+class ClosureInfo(NamedTuple):
+    # The packages included in the closure.
+    runtime: Set[Package]
+
+    # The build dependencies required to build the closure.
+    build: Set[Package]
 
 
-def get_build_requisites(path: str) -> Set[Package]:
+def get_closure_info(packages_json_path: str) -> ClosureInfo:
     """
-    Return the closure of build time dependencies of the store path.
+    Load the detailed information for a given `packages.json` in an image output
+    directory. That json already lists the runtime closure, we load the details
+    and also get the build dependencies.
     """
-    derivation = run(f"{NIX_BIN}/nix-store", "--query", "--deriver", path).strip()
-    deps_closure = run(f"{NIX_BIN}/nix-store", "--query", "--requisites", derivation)
-    deps_derivations = [p for p in deps_closure.splitlines() if p.endswith(".drv")]
-    return set(get_packages_from_derivations(deps_derivations))
+    with open(packages_json_path, "r", encoding="utf-8") as f:
+        packages: List[Dict[str, Any]] = json.load(f)
+
+    # The packages.json file already contains the transitive closure. We just
+    # need to look up the derivation for each package.
+    runtime_paths: List[str] = [pkg["path"] for pkg in packages]
+    runtime_drvs = set(
+        run(f"{NIX_BIN}/nix-store", "--query", "--deriver", *runtime_paths).splitlines()
+    )
+
+    # We can only query the requisites for .drv files that we have. For packages
+    # that we got from a cache, we don't have those, and the cache may not have
+    # them any more either, so we can't know the build dependencies of those.
+    have_runtime_drvs = [fname for fname in runtime_drvs if os.path.isfile(fname)]
+
+    # If we ask for the requisites of the derivations, we get the build deps.
+    build_deps = run(
+        f"{NIX_BIN}/nix-store", "--query", "--requisites", *have_runtime_drvs
+    )
+    build_drvs = {p for p in build_deps.splitlines() if p.endswith(".drv")}
+
+    return ClosureInfo(
+        runtime=set(get_packages_from_derivations(runtime_drvs)),
+        build=set(get_packages_from_derivations(build_drvs - runtime_drvs)),
+    )

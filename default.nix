@@ -216,7 +216,7 @@ let
     # Make Nix dump the details of the closure of the packages as part of the
     # NIX_ATTRS_JSON_FILE.
     __structuredAttrs = true;
-    exportReferencesGraph.pkgClosure = [ pkg ] ++ extraPackages;
+    exportReferencesGraph.pkgClosure = [ pkg ];
 
     # There is no significant size difference between level=6 and level=12,
     # though there is a significant difference in compression time. So we opt
