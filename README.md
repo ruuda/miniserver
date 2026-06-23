@@ -20,17 +20,17 @@ Building of the images is automated using [Nix][nix], a purely functional
 package manager. Nix outputs a single json file, the _manifest_, which contains
 information about the images built.
 
-    $ nix build --out-link result packages/nginx
+    $ nix build --out-link result images/nginx
     $ systemd-nspawn --ephemeral --image $(rcl rq result '
       f"{input.nix_store_path}/{input.image_file}"
     ') -- /usr/bin/nginx -V
 
-    $ nix build --out-link result packages/lego
+    $ nix build --out-link result images/lego
     $ systemd-nspawn --ephemeral --image $(rcl rq result '
       f"{input.nix_store_path}/{input.image_file}"
     ') -- /usr/bin/lego --version
 
-    $ nix build --out-link result packages/nsd
+    $ nix build --out-link result images/nsd
     $ systemd-nspawn --ephemeral --image $(rcl rq result '
       f"{input.nix_store_path}/{input.image_file}"
     ') -- /usr/bin/nsd -v
