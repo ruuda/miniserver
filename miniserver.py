@@ -7,14 +7,19 @@ Miniserver -- deploy self-contained erofs images for webserver software
 USAGE
 
     miniserver.py <command> <host>...
+    miniserver.py deploy --image=<img>... <host>...
 
 COMMANDS
 
    deploy     Deploy the currently checked-out version.
-   status     Print currently deployed version and status of the nginx unit.
+   status     Print store details and recent deployment log.
    gc         Remove old versions from the store.
               Note, gc also happens automatically after deploy, the manual
               command is here mostly for testing purposes.
+
+OPTIONS
+
+   --image    Select the image to deploy. Can be provided multiple times.
 
 ARGUMENTS
 
@@ -37,16 +42,20 @@ from typing import Dict, Iterator, List, NamedTuple, Tuple
 from nix_store import NIX_BIN, ensure_pinned_nix_version, run
 
 
-class ManifestEntry(NamedTuple):
+class Manifest(NamedTuple):
+    name: str
     id: str
     nix_store_path: str
     img_store_path: str
     image_file: str
+    image_size_bytes: int
     verity_file: str
     verity_roothash: str
+    nixpkgs_commit: str
+    nixpkgs_date: str
 
 
-def get_current_manifest() -> Dict[str, ManifestEntry]:
+def get_current_manifest(image: str) -> Manifest:
     ensure_pinned_nix_version()
     path = run(
         f"{NIX_BIN}/nix",
@@ -54,10 +63,10 @@ def get_current_manifest() -> Dict[str, ManifestEntry]:
         "nix-command",
         "path-info",
         "--file",
-        "default.nix",
+        f"images/{image}/default.nix",
     ).rstrip("\n")
     with open(path, "r", encoding="utf-8") as f:
-        return {name: ManifestEntry(**entry) for name, entry in json.load(f).items()}
+        return Manifest(**json.load(f))
 
 
 @contextmanager
@@ -131,15 +140,15 @@ def sshfs(host: str) -> Iterator[str]:
 
 def deploy_image(
     tmp_path: str,
-    entry: ManifestEntry,
+    manifest: Manifest,
 ) -> None:
-    target_sub = entry.img_store_path.removeprefix("/var/lib/images/")
+    target_sub = manifest.img_store_path.removeprefix("/var/lib/images/")
     target_dir = f"{tmp_path}/{target_sub}"
     now = datetime.now(timezone.utc)
 
     os.makedirs(target_dir, exist_ok=True)
-    for fname in [entry.image_file, entry.verity_file]:
-        src = f"{entry.nix_store_path}/{fname}"
+    for fname in [manifest.image_file, manifest.verity_file]:
+        src = f"{manifest.nix_store_path}/{fname}"
         dst = f"{target_dir}/{fname}"
 
         # Note, we don't read back the file to confirm that the copy arrived
@@ -151,7 +160,7 @@ def deploy_image(
 
     # Record when we deployed this version.
     with open(f"{tmp_path}/deploy.log", "a", encoding="utf-8") as deploylog:
-        deploylog.write(f"{now.isoformat()}\t{target_sub}\t{entry.image_file}\n")
+        deploylog.write(f"{now.isoformat()}\t{target_sub}\t{manifest.image_file}\n")
 
 
 def get_file_size_bytes(path: str) -> int:
@@ -169,20 +178,20 @@ def get_store_size_bytes(tmp_path: str) -> int:
     )
 
 
-def gc_store(tmp_path: str, max_size_bytes: int, keep_subdirs: List[str]) -> None:
+def gc_store(tmp_path: str, max_size_bytes: int, subdirs: List[str]) -> None:
     sizes: Dict[str, int] = {}
-    for pkg in os.listdir(tmp_path):
-        pkg_path = os.path.join(tmp_path, pkg)
-        if not os.path.isdir(pkg_path):
-            continue
-        for version in os.listdir(pkg_path):
-            version_path = os.path.join(pkg_path, version)
-            size_bytes = sum(
-                get_file_size_bytes(os.path.join(dirpath, fname))
-                for dirpath, _dirnames, fnames in os.walk(version_path)
-                for fname in fnames
-            )
-            sizes[f"{pkg}/{version}"] = size_bytes
+    for pkg in subdirs:
+            pkg_path = os.path.join(tmp_path, pkg)
+            if not os.path.isdir(pkg_path):
+                continue
+            for version in os.listdir(pkg_path):
+                version_path = os.path.join(pkg_path, version)
+                size_bytes = sum(
+                    get_file_size_bytes(os.path.join(dirpath, fname))
+                    for dirpath, _dirnames, fnames in os.walk(version_path)
+                    for fname in fnames
+                )
+                sizes[f"{pkg}/{version}"] = size_bytes
 
     # Build the ordered candidates for deletion, ordered by most recently
     # deployed first (those must be kept).
@@ -195,10 +204,6 @@ def gc_store(tmp_path: str, max_size_bytes: int, keep_subdirs: List[str]) -> Non
                 candidates[subdir] = sizes[subdir], time
 
     budget_bytes = max_size_bytes
-
-    # We should not GC anything that we are instructed to keep.
-    for keep_subdir in keep_subdirs:
-        budget_bytes -= candidates.pop(keep_subdir)[0]
 
     # Keep as many of the most recent releases as will fit the budget.
     to_keep = set()
@@ -253,23 +258,31 @@ def main() -> None:
         print(__doc__)
         sys.exit(1)
 
-    manifest = get_current_manifest()
-    pkg_subdirs = [
-        entry.img_store_path.removeprefix("/var/lib/images/")
-        for entry in manifest.values()
-    ]
+    images = []
+    hosts = []
 
-    for host in args:
+    for arg in args:
+        if arg.startswith("--image="):
+            images.append(arg.removeprefix("--image="))
+        else:
+            hosts.append(arg)
+
+    manifests = {
+        image: get_current_manifest(image)
+        for image in images
+    }
+
+    for host in hosts:
         if cmd == "deploy":
             print(f"Connecting to {host} ...")
             with sshfs(host) as tmp_path:
-                for name, entry in manifest.items():
-                    print(f"=> {entry.img_store_path}/{entry.image_file}")
-                    deploy_image(tmp_path, entry)
+                for name, manifest in manifests.items():
+                    print(f"=> {manifest.img_store_path}/{manifest.image_file}")
+                    deploy_image(tmp_path, manifest)
                 gc_store(
                     tmp_path,
-                    max_size_bytes=550_000_000,
-                    keep_subdirs=pkg_subdirs,
+                    max_size_bytes=100_000_000 * len(images),
+                    subdirs=images,
                 )
 
         if cmd == "status":
@@ -291,8 +304,8 @@ def main() -> None:
             with sshfs(host) as tmp_path:
                 gc_store(
                     tmp_path,
-                    max_size_bytes=550_000_000,
-                    keep_subdirs=pkg_subdirs,
+                    max_size_bytes=100_000_000 * len(images),
+                    subdirs=images,
                 )
 
 

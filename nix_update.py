@@ -14,6 +14,7 @@ Usage:
 Defaults to the NixOS/nixpkgs repository and the nixos-unstable branch.
 """
 
+import datetime
 import json
 import os
 import re
@@ -57,6 +58,23 @@ def get_branch_head(owner: str, repo: str, branch: str) -> Branch:
     return Branch(branch, sha)
 
 
+def get_committer_date(owner: str, repo: str, commit_hash: str) -> str:
+    """
+    Return the committer date of the given commit. This queries the GitHub API.
+    """
+    url = (
+        f"https://api.github.com/repos/{owner}/{repo}/commits/{commit_hash}?per_page=0"
+    )
+    response = urllib.request.urlopen(url)
+    body = json.load(response)
+    timestamp: str = body["commit"]["committer"]["date"]
+
+    # Ensure that we can parse the timestamp.
+    datetime.datetime.fromisoformat(timestamp)
+
+    return timestamp
+
+
 def get_latest_revision(
     owner: str, repo: str, branch_or_sha: str
 ) -> Union[Branch, Commit]:
@@ -89,19 +107,27 @@ def prefetch_url(url: str) -> str:
     return result_hash
 
 
-def format_fetch_nixpkgs_tarball(owner: str, repo: str, commit_hash: str) -> str:
+def format_nixpkgs_pin(owner: str, repo: str, commit_hash: str) -> str:
     """
-    For a given Nixpkgs commit, return a fetchTarball expression to fetch it.
+    For a given Nixpkgs commit, return the expression with metadata and the
+    fetchTarball to fetch it.
     """
     url = f"https://github.com/{owner}/{repo}/archive/{commit_hash}.tar.gz"
+    committer_date = get_committer_date(owner, repo, commit_hash)
     archive_hash = prefetch_url(url)
 
-    nix_expr = f"""\
-    import (fetchTarball {{
-      url = "https://github.com/{owner}/{repo}/archive/{commit_hash}.tar.gz";
-      sha256 = "{archive_hash}";
-    }})
-    """
+    nix_expr = textwrap.dedent(f"""\
+        rec {{
+          owner = "{owner}";
+          repo = "{repo}";
+          commit = "{commit_hash}";
+          commit_date = "{committer_date}";
+          tarball = fetchTarball {{
+            url = "https://github.com/${{owner}}/${{repo}}/archive/${{commit}}.tar.gz";
+            sha256 = "{archive_hash}";
+          }};
+        }}
+        """)
     return textwrap.dedent(nix_expr)
 
 
@@ -119,35 +145,22 @@ def get_union_closure_info(manifest_fname: str) -> ClosureInfo:
     and union those.
     """
     with open(manifest_fname, "r", encoding="utf-8") as f:
-        manifest: Dict[str, Dict[str, Any]] = json.load(f)
+        manifest: Dict[str, Any] = json.load(f)
 
-    runtime: Set[Package] = set()
-    build: Set[Package] = set()
-
-    for pkg_name, pkg in manifest.items():
-        packages_fname = os.path.join(pkg["nix_store_path"], "packages.json")
-        closure_info = get_closure_info(packages_fname)
-        runtime.update(closure_info.runtime)
-        build.update(closure_info.build)
-
-    # A package may be a build dependency for some packages but a runtime
-    # dependency for others, we don't want to list those twice.
-    build -= runtime
-
-    return ClosureInfo(runtime, build)
+    packages_fname = os.path.join(manifest["nix_store_path"], "packages.json")
+    return get_closure_info(packages_fname)
 
 
-def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -> Diffs:
+def try_update_nixpkgs(image: str, pinned_expr: str) -> Diffs:
     """
     Replace nixpkgs-pinned.nix with a newer version that fetches the latest
-    commit in the given channel, and build default.nix. If that produces any
-    changes, keep nixpkgs-pinned.nix, otherwise restore the previous version.
+    commit in the given channel, and build default.nix. Return the resulting
+    changes. The caller must restore nixpkgs-pinned.nix.bak to undo the change.
     """
-    tmp_path = f"/tmp/nix-{uuid.uuid4()}"
+    tmp_path = f"/tmp/nix-{image}-{uuid.uuid4()}"
     before_path = f"{tmp_path}-before"
     after_path = f"{tmp_path}-after"
 
-    print("[1/3] Building before ...")
     subprocess.run(
         [
             f"{NIX_BIN}/nix",
@@ -155,24 +168,19 @@ def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -
             "nix-command",
             "build",
             "--file",
-            "default.nix",
+            f"images/{image}/default.nix",
             "--out-link",
             before_path,
         ]
     )
 
-    os.rename("nixpkgs-pinned.nix", "nixpkgs-pinned.nix.bak")
-
-    if isinstance(revision, Branch):
-        print(f"[2/3] Fetching latest commit in {owner}/{repo} {revision.name} ...")
-    else:
-        print(f"[2/3] Fetching {owner}/{repo} {revision.head} ...")
-
-    pinned_expr = format_fetch_nixpkgs_tarball(owner, repo, revision.head)
-    with open("nixpkgs-pinned.nix", "w", encoding="utf-8") as f:
+    os.rename(
+        f"images/{image}/nixpkgs-pinned.nix",
+        f"images/{image}/nixpkgs-pinned.nix.bak",
+    )
+    with open(f"images/{image}/nixpkgs-pinned.nix", "w", encoding="utf-8") as f:
         f.write(pinned_expr)
 
-    print("[3/3] Building after ...")
     subprocess.run(
         [
             f"{NIX_BIN}/nix",
@@ -180,7 +188,7 @@ def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -
             "nix-command",
             "build",
             "--file",
-            "default.nix",
+            f"images/{image}/default.nix",
             "--out-link",
             after_path,
         ]
@@ -194,7 +202,7 @@ def try_update_nixpkgs(owner: str, repo: str, revision: Union[Branch, Commit]) -
     return Diffs(diffs_build, diffs_runtime)
 
 
-def summarize(diffs: Diffs) -> Optional[str]:
+def summarize(image: str, diffs: Diffs) -> Optional[str]:
     """
     Return a short subject line that summarizes the diff. Returns none if we
     can't find a good summary.
@@ -206,8 +214,9 @@ def summarize(diffs: Diffs) -> Optional[str]:
     for diff in diffs.build:
         if isinstance(diff, Change):
             changes_build.append(diff)
-        else:
-            num_other_changes += 1
+        # We don't count build additions and removals as "other changes",
+        # because we can't reliably gather build dependencies. Maybe we should
+        # just stop listing these entirely ...
 
     for diff in diffs.runtime:
         if isinstance(diff, Change):
@@ -217,17 +226,16 @@ def summarize(diffs: Diffs) -> Optional[str]:
 
     # We list packages by shortest name first, to get as much information in the
     # subject line as possible.
-    changes_build.sort(key=lambda ch: len(str(ch.after)))
-    changes_build.reverse()
+    changes_build.sort(key=lambda change: len(change.after.name))
+    changes_runtime.sort(key=lambda change: len(change.after.name))
 
-    changes_runtime.sort(key=lambda ch: len(str(ch.after)))
-    changes_runtime.reverse()
+    # The most important package is the one that the image is named after,
+    # so extract that one out if one exists.
+    changes_primary = [ch for ch in changes_runtime if ch.after.name.startswith(image)]
+    for ch in changes_primary:
+        changes_runtime.remove(ch)
 
-    # Combine all changes, but prefer runtime deps over build deps when space
-    # is scarce.
-    changes = changes_runtime + changes_build
-
-    if len(changes) == 0:
+    if len(changes_runtime) + len(changes_build) == 0:
         return None
 
     def tail(n: int) -> str:
@@ -238,9 +246,14 @@ def summarize(diffs: Diffs) -> Optional[str]:
         else:
             return f", and {num_other_changes + n} changes"
 
-    # Generate both long-form updates and short-form updates.
-    changes_long = [f"{ch.after.name} to {ch.after.version}" for ch in changes]
-    changes_short = [ch.after.name for ch in changes]
+    # Combine all changes, but prefer runtime deps over build deps when space
+    # is scarce. Generate both long-form updates and short-form updates.
+    # We keep the primary separate because those should always include the
+    # version.
+    changes = changes_runtime + changes_build
+    prefix = [f"{ch.after.name} {ch.after.version}" for ch in changes_primary]
+    changes_long = prefix + [f"{ch.after.name} {ch.after.version}" for ch in changes]
+    changes_short = prefix + [ch.after.name for ch in changes]
 
     # Generate all possible messages, in order of preference. We prefer to
     # include as much names as possible, and we prefer to have them with
@@ -248,8 +261,8 @@ def summarize(diffs: Diffs) -> Optional[str]:
     messages = []
     omitted = 0
     while len(changes_long) > 0:
-        messages.append("Update " + ", ".join(changes_long) + tail(omitted))
-        messages.append("Update " + ", ".join(changes_short) + tail(omitted))
+        messages.append(f"Update {image}: " + ", ".join(changes_long) + tail(omitted))
+        messages.append(f"Update {image}: " + ", ".join(changes_short) + tail(omitted))
         changes_long.pop()
         changes_short.pop()
         omitted += 1
@@ -260,11 +273,15 @@ def summarize(diffs: Diffs) -> Optional[str]:
         if len(message) < 52:
             return message
 
-    # If nothing fits, we ran out.
+    # If nothing fits, return the shortest message we had, if any.
+    if len(messages) > 0:
+        return messages[-1]
+
     return None
 
 
 def commit_nixpkgs_pinned(
+    image: str,
     owner: str,
     repo: str,
     revision: Union[Branch, Commit],
@@ -273,17 +290,18 @@ def commit_nixpkgs_pinned(
     """
     Commit nixpkgs-pinned.nix, and include the diff in the message.
     """
-    run("git", "add", "nixpkgs-pinned.nix")
+    run("git", "add", f"images/{image}/nixpkgs-pinned.nix")
 
     if isinstance(revision, Branch):
         message = (
-            "This updates the pinned Nixpkgs snapshot to the latest commit "
+            "This updates the pinned Nixpkgs snapshot "
+            f"for {image} to the latest commit "
             f"in the {revision.name} branch of {owner}/{repo}."
         )
     else:
         message = (
-            f"This updates the pinned Nixpkgs snapshot to commit "
-            f"{revision.head} of {owner}/{repo}."
+            "This updates the pinned Nixpkgs snapshot "
+            f"for {image} to commit {revision.head} of {owner}/{repo}."
         )
 
     body_lines = [*textwrap.wrap(message, width=72)]
@@ -306,23 +324,26 @@ def commit_nixpkgs_pinned(
 
     if isinstance(revision, Branch):
         subject = (
-            summarize(diffs)
-            or f"Update to latest commit in {owner}/{repo} {revision.name}"
+            summarize(image, diffs)
+            or f"Update {image} to latest commit in {owner}/{repo} {revision.name}"
         )
     else:
-        subject = summarize(diffs) or f"Update to pinned commit in {owner}/{repo}"
+        subject = (
+            summarize(image, diffs)
+            or f"Update {image} to pinned commit in {owner}/{repo}"
+        )
 
     body = "\n".join(body_lines)
     message = f"{subject}\n\n{body}\n"
     subprocess.run(["git", "commit", "--message", message])
 
     # If we commit the new file, then we no longer need the backup.
-    os.remove("nixpkgs-pinned.nix.bak")
+    os.remove(f"images/{image}/nixpkgs-pinned.nix.bak")
 
     if isinstance(revision, Branch):
-        print(f"Committed upgrade to latest commit in {owner}/{repo} {revision.name}")
+        print(f"Committed update to latest commit in {owner}/{repo} {revision.name}")
     else:
-        print(f"Committed upgrade to {owner}/{repo} {revision.head}")
+        print(f"Committed update to {owner}/{repo} {revision.head}")
 
 
 def main(owner: str, repo: str, branch_or_sha: str) -> None:
@@ -331,23 +352,40 @@ def main(owner: str, repo: str, branch_or_sha: str) -> None:
     and commit that, if newer versions of a dependency are available.
     """
     ensure_pinned_nix_version()
-    revision = get_latest_revision(owner, repo, branch_or_sha)
-    diffs = try_update_nixpkgs(owner, repo, revision)
-    if len(diffs.runtime) > 0:
-        commit_nixpkgs_pinned(owner, repo, revision, diffs)
-    else:
-        # If there were no changes in the output, then the new pinned revision
-        # is not useful to this project, so restore the previously pinned
-        # revision in order to not introduce unnecessary churn. The store paths
-        # can still change. That might mean that e.g. the compiler changed.
-        os.rename("nixpkgs-pinned.nix.bak", "nixpkgs-pinned.nix")
 
-        if isinstance(revision, Branch):
-            print(
-                f"Latest commit in {revision.name} branch has no interesting changes."
-            )
+    images = os.listdir("images")
+    n = 1 + len(images)
+
+    revision = get_latest_revision(owner, repo, branch_or_sha)
+    if isinstance(revision, Branch):
+        print(f"[1/{n}] Fetching latest commit in {owner}/{repo} {revision.name} ...")
+    else:
+        print(f"[1/{n}] Fetching {owner}/{repo} {revision.head} ...")
+
+    pinned_expr = format_nixpkgs_pin(owner, repo, revision.head)
+
+    for i, image in enumerate(images):
+        print(f"[{i+1}/{n}] Building {image} ...")
+        diffs = try_update_nixpkgs(image, pinned_expr)
+        if len(diffs.runtime) > 0:
+            commit_nixpkgs_pinned(image, owner, repo, revision, diffs)
         else:
-            print(f"Commit {revision.head} has no interesting changes.")
+            # If there were no changes in the runtime paths, then the new pinned
+            # revision is not useful to this project, so restore the previously
+            # pinned revision in order to not introduce unnecessary churn. The
+            # store paths can still change. That might mean that e.g. the
+            # compiler changed.
+            os.rename(
+                f"images/{image}/nixpkgs-pinned.nix.bak",
+                f"images/{image}/nixpkgs-pinned.nix",
+            )
+
+            if isinstance(revision, Branch):
+                print(
+                    f"Latest commit in {revision.name} branch has no interesting changes."
+                )
+            else:
+                print(f"Commit {revision.head} has no interesting changes.")
 
 
 def getarg(n: int, default: str) -> str:

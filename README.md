@@ -1,9 +1,9 @@
 # Miniserver
 
-Tools to build ingredients for a minimal webserver: EROFS images that contain
-Nginx, Lego, and NSD. These images are suitable for running under systemd on
-[Flatcar Container Linux][flatcar] (formerly [CoreOS][coreos]). A secure and
-simple way to host a static site.
+Tools to build self-contained EROFS images for packages from Nixpkgs, in
+particular Nginx, Lego, and NSD to run a webserver. These images are suitable
+for running under systemd on [Flatcar Container Linux][flatcar] (formerly
+[CoreOS][coreos]). A secure and simple way to host a static site.
 
 Features:
 
@@ -20,63 +20,47 @@ Building of the images is automated using [Nix][nix], a purely functional
 package manager. Nix outputs a single json file, the _manifest_, which contains
 information about the images built.
 
-    $ nix build --out-link result
-
+    $ nix build --out-link result images/nginx
     $ systemd-nspawn --ephemeral --image $(rcl rq result '
-      let pkg = input.nginx;
-      f"{pkg.nix_store_path}/{pkg.image_file}"
+      f"{input.nix_store_path}/{input.image_file}"
     ') -- /usr/bin/nginx -V
 
+    $ nix build --out-link result images/lego
     $ systemd-nspawn --ephemeral --image $(rcl rq result '
-      let pkg = input.lego;
-      f"{pkg.nix_store_path}/{pkg.image_file}"
+      f"{input.nix_store_path}/{input.image_file}"
     ') -- /usr/bin/lego --version
 
+    $ nix build --out-link result images/nsd
     $ systemd-nspawn --ephemeral --image $(rcl rq result '
-      let pkg = input.nsd;
-      f"{pkg.nix_store_path}/{pkg.image_file}"
+      f"{input.nix_store_path}/{input.image_file}"
     ') -- /usr/bin/nsd -v
 
-An example manifest, the output of the build which describes the images built,
-and their metadata:
+An example manifest, the output of the build which describes the image built,
+and its metadata:
 
 ```json
 {
-  "nginx": {
-    "id": "49dz2afiyczwygx8c29bviisch88gyja",
-    "nix_store_path": "/nix/store/49dz2afiyczwygx8c29bviisch88gyja-nginx-1.29.7-verity",
-    "img_store_path": "/var/lib/images/nginx/49dz2a",
-    "image_file": "nginx-1.29.7.img",
-    "verity_file": "nginx-1.29.7.img.verity",
-    "verity_roothash": "543bf10a927fadf8966d6da5f8dced25fc90cd743ce7e7ce5ce0b7e6cea272f0"
-  },
-  "lego": {
-    "id": "jn8afm7bsvsq5q10xdrs03g1dh549g1m",
-    "nix_store_path": "/nix/store/jn8afm7bsvsq5q10xdrs03g1dh549g1m-lego-4.31.0-verity",
-    "img_store_path": "/var/lib/images/lego/jn8afm",
-    "image_file": "lego-4.31.0.img",
-    "verity_file": "lego-4.31.0.img.verity",
-    "verity_roothash": "b2206c36768b472bcd0843ab47af609c0222fa4a5ac23358614864473f8d41e1"
-  },
-  "nsd": {
-    "id": "xp4v36hk2rq1a6cxy5q34h58prdf9rp3",
-    "nix_store_path": "/nix/store/xp4v36hk2rq1a6cxy5q34h58prdf9rp3-nsd-4.12.0-verity",
-    "img_store_path": "/var/lib/images/nsd/xp4v36",
-    "image_file": "nsd-4.12.0.img",
-    "verity_file": "nsd-4.12.0.img.verity",
-    "verity_roothash": "5bd0d78e9187147c9bb26256e5cd116659dc8cb89e288dc568c2b75898618edc"
-  }
+  "name": "nginx",
+  "id": "hsr674bfgqcmzdiw46jjpa99jxfkgn14",
+  "nix_store_path": "/nix/store/hsr674bfgqcmzdiw46jjpa99jxfkgn14-nginx-1.31.0-image",
+  "img_store_path": "/var/lib/images/nginx/hsr674",
+  "image_file": "nginx-1.31.0.img",
+  "image_size_bytes": 9658368,
+  "verity_file": "nginx-1.31.0.img.verity",
+  "verity_roothash": "1f0657688222cc231bbc6749da005dec7b9a6833e8cf82472b42153c24e45304",
+  "nixpkgs_commit": "69d860e0e0e115deecf32e235e279cca0bb67545",
+  "nixpkgs_date": "2026-05-15T09:23:15Z"
 }
 ```
 
-The build involves the following:
+The build of the webserver components involves the following:
 
- * Take the package definitions for `nginx`, `lego`, and `nsd` from a pinned
-   version of [Nixpkgs][nixpkgs].
+ * Take the package definitions for `nginx`, `lego`, and `nsd`, and any other
+   packages from a pinned version of [Nixpkgs][nixpkgs].
  * Override `nginx` package to disable unused features (to reduce the number
    of dependencies, and thereby attack surface and image size). Add the
    [`ngx_brotli`][ngx-brotli] module for `brotli_static` support.
- * Build a self-contained Erofs image.
+ * Build a self-contained Erofs image for every package.
 
 [nix]:        https://nixos.org/nix/
 [nixpkgs]:    https://github.com/NixOS/nixpkgs
@@ -94,7 +78,7 @@ images to servers. It will:
 
 To install or update:
 
-    ./miniserver.py deploy <hostname>...
+    ./miniserver.py deploy --image=<image>... <hostname>...
 
 You need to have built the images before it can be deployed, but because
 `miniserver.py` reads the json manifest, this is automatically enforced.
