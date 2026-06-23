@@ -20,63 +20,45 @@ Building of the images is automated using [Nix][nix], a purely functional
 package manager. Nix outputs a single json file, the _manifest_, which contains
 information about the images built.
 
-    $ nix build --out-link result
-
+    $ nix build --out-link result packages/nginx
     $ systemd-nspawn --ephemeral --image $(rcl rq result '
-      let pkg = input.nginx;
-      f"{pkg.nix_store_path}/{pkg.image_file}"
+      f"{input.nix_store_path}/{input.image_file}"
     ') -- /usr/bin/nginx -V
 
+    $ nix build --out-link result packages/lego
     $ systemd-nspawn --ephemeral --image $(rcl rq result '
-      let pkg = input.lego;
-      f"{pkg.nix_store_path}/{pkg.image_file}"
+      f"{input.nix_store_path}/{input.image_file}"
     ') -- /usr/bin/lego --version
 
+    $ nix build --out-link result packages/nsd
     $ systemd-nspawn --ephemeral --image $(rcl rq result '
-      let pkg = input.nsd;
-      f"{pkg.nix_store_path}/{pkg.image_file}"
+      f"{input.nix_store_path}/{input.image_file}"
     ') -- /usr/bin/nsd -v
 
-An example manifest, the output of the build which describes the images built,
-and their metadata:
+An example manifest, the output of the build which describes the image built,
+and its metadata:
 
 ```json
 {
-  "nginx": {
-    "id": "49dz2afiyczwygx8c29bviisch88gyja",
-    "nix_store_path": "/nix/store/49dz2afiyczwygx8c29bviisch88gyja-nginx-1.29.7-verity",
-    "img_store_path": "/var/lib/images/nginx/49dz2a",
-    "image_file": "nginx-1.29.7.img",
-    "verity_file": "nginx-1.29.7.img.verity",
-    "verity_roothash": "543bf10a927fadf8966d6da5f8dced25fc90cd743ce7e7ce5ce0b7e6cea272f0"
-  },
-  "lego": {
-    "id": "jn8afm7bsvsq5q10xdrs03g1dh549g1m",
-    "nix_store_path": "/nix/store/jn8afm7bsvsq5q10xdrs03g1dh549g1m-lego-4.31.0-verity",
-    "img_store_path": "/var/lib/images/lego/jn8afm",
-    "image_file": "lego-4.31.0.img",
-    "verity_file": "lego-4.31.0.img.verity",
-    "verity_roothash": "b2206c36768b472bcd0843ab47af609c0222fa4a5ac23358614864473f8d41e1"
-  },
-  "nsd": {
-    "id": "xp4v36hk2rq1a6cxy5q34h58prdf9rp3",
-    "nix_store_path": "/nix/store/xp4v36hk2rq1a6cxy5q34h58prdf9rp3-nsd-4.12.0-verity",
-    "img_store_path": "/var/lib/images/nsd/xp4v36",
-    "image_file": "nsd-4.12.0.img",
-    "verity_file": "nsd-4.12.0.img.verity",
-    "verity_roothash": "5bd0d78e9187147c9bb26256e5cd116659dc8cb89e288dc568c2b75898618edc"
-  }
+  "name": "nginx",
+  "id": "5z6nqkyq650y2k76nzri59mbqyxijn0f",
+  "nix_store_path": "/nix/store/5z6nqkyq650y2k76nzri59mbqyxijn0f-nginx-1.31.0-image",
+  "img_store_path": "/var/lib/images/nginx/5z6nqk",
+  "image_file": "nginx-1.31.0.img",
+  "image_size_bytes": 9658368,
+  "verity_file": "nginx-1.31.0.img.verity",
+  "verity_roothash": "587e0afcd3b1bb4d4086aba1a4164c0bba56b6ff36502e1239cdfc15f12854d1"
 }
 ```
 
 The build involves the following:
 
- * Take the package definitions for `nginx`, `lego`, and `nsd` from a pinned
-   version of [Nixpkgs][nixpkgs].
+ * Take the package definitions for `nginx`, `lego`, and `nsd`, and any other
+   packages from a pinned version of [Nixpkgs][nixpkgs].
  * Override `nginx` package to disable unused features (to reduce the number
    of dependencies, and thereby attack surface and image size). Add the
    [`ngx_brotli`][ngx-brotli] module for `brotli_static` support.
- * Build a self-contained Erofs image.
+ * Build a self-contained Erofs image for every package.
 
 [nix]:        https://nixos.org/nix/
 [nixpkgs]:    https://github.com/NixOS/nixpkgs
