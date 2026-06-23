@@ -18,7 +18,6 @@
 }:
 
 let
-  forgejo = pkgs.forgejo;
   outline = pkgs.outline;
   rauthy = pkgs.rauthy;
   valkey = pkgs.valkey;
@@ -134,29 +133,6 @@ let
       '';
   };
 
-  imageForgejo = buildImage rec {
-    label = "miniserver-fj";
-    pkg = forgejo;
-    extraBuildCommand =
-      ''
-      mkdir -p $out/var/lib/forgejo
-      mkdir -p $out/var/log/forgejo
-      mkdir -p $out/etc/forgejo
-      mkdir -p $out/home/git
-      ln -s ${pkg}/bin/forgejo $out/usr/bin
-      ln -s ${pkgs.git}/bin/* $out/usr/bin
-      ln -s ${pkgs.git-lfs}/bin/* $out/usr/bin
-
-      # Forgejo creates .git/hooks that use `/usr/bin/env bash` as #! line,
-      # and those scripts rely on `cat` and `basename`, so let's just pull in
-      # the entire coreutils.
-      ln -s ${pkgs.coreutils}/bin/* $out/usr/bin
-      ln -s ${pkgs.bash}/bin/bash $out/usr/bin/bash
-      '';
-
-      extraPackages = with pkgs; [ bash coreutils git git-lfs ];
-  };
-
   imageOutline = buildImage rec {
     label = "miniserver-otln";
     pkg = outline;
@@ -212,7 +188,6 @@ in
     buildCommand =
       ''
       python3 ${./build_manifest.py} \
-        forgejo=${imageForgejo} \
         outline=${imageOutline} \
         rauthy=${imageRauthy} \
         valkey=${imageValkey} \
