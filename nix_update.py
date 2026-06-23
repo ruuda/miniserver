@@ -62,7 +62,9 @@ def get_committer_date(owner: str, repo: str, commit_hash: str) -> str:
     """
     Return the committer date of the given commit. This queries the GitHub API.
     """
-    url = f"https://api.github.com/repos/{owner}/{repo}/commits/{commit_hash}?per_page=0"
+    url = (
+        f"https://api.github.com/repos/{owner}/{repo}/commits/{commit_hash}?per_page=0"
+    )
     response = urllib.request.urlopen(url)
     body = json.load(response)
     timestamp: str = body["commit"]["committer"]["date"]
@@ -125,8 +127,7 @@ def format_nixpkgs_pin(owner: str, repo: str, commit_hash: str) -> str:
             sha256 = "{archive_hash}";
           }};
         }}
-        """
-    )
+        """)
     return textwrap.dedent(nix_expr)
 
 
@@ -213,8 +214,9 @@ def summarize(image: str, diffs: Diffs) -> Optional[str]:
     for diff in diffs.build:
         if isinstance(diff, Change):
             changes_build.append(diff)
-        else:
-            num_other_changes += 1
+        # We don't count build additions and removals as "other changes",
+        # because we can't reliably gather build dependencies. Maybe we should
+        # just stop listing these entirely ...
 
     for diff in diffs.runtime:
         if isinstance(diff, Change):
@@ -224,17 +226,16 @@ def summarize(image: str, diffs: Diffs) -> Optional[str]:
 
     # We list packages by shortest name first, to get as much information in the
     # subject line as possible.
-    changes_build.sort(key=lambda ch: len(str(ch.after)))
-    changes_build.reverse()
+    changes_build.sort(key=lambda change: len(change.after.name))
+    changes_runtime.sort(key=lambda change: len(change.after.name))
 
-    changes_runtime.sort(key=lambda ch: len(str(ch.after)))
-    changes_runtime.reverse()
+    # The most important package is the one that the image is named after,
+    # so extract that one out if one exists.
+    changes_primary = [ch for ch in changes_runtime if ch.after.name.startswith(image)]
+    for ch in changes_primary:
+        changes_runtime.remove(ch)
 
-    # Combine all changes, but prefer runtime deps over build deps when space
-    # is scarce.
-    changes = changes_runtime + changes_build
-
-    if len(changes) == 0:
+    if len(changes_runtime) + len(changes_build) == 0:
         return None
 
     def tail(n: int) -> str:
@@ -245,9 +246,14 @@ def summarize(image: str, diffs: Diffs) -> Optional[str]:
         else:
             return f", and {num_other_changes + n} changes"
 
-    # Generate both long-form updates and short-form updates.
-    changes_long = [f"{ch.after.name} to {ch.after.version}" for ch in changes]
-    changes_short = [ch.after.name for ch in changes]
+    # Combine all changes, but prefer runtime deps over build deps when space
+    # is scarce. Generate both long-form updates and short-form updates.
+    # We keep the primary separate because those should always include the
+    # version.
+    changes = changes_runtime + changes_build
+    prefix = [f"{ch.after.name} {ch.after.version}" for ch in changes_primary]
+    changes_long = prefix + [f"{ch.after.name} {ch.after.version}" for ch in changes]
+    changes_short = prefix + [ch.after.name for ch in changes]
 
     # Generate all possible messages, in order of preference. We prefer to
     # include as much names as possible, and we prefer to have them with
@@ -267,7 +273,10 @@ def summarize(image: str, diffs: Diffs) -> Optional[str]:
         if len(message) < 52:
             return message
 
-    # If nothing fits, we ran out.
+    # If nothing fits, return the shortest message we had, if any.
+    if len(messages) > 0:
+        return messages[-1]
+
     return None
 
 
@@ -319,7 +328,10 @@ def commit_nixpkgs_pinned(
             or f"Update {image} to latest commit in {owner}/{repo} {revision.name}"
         )
     else:
-        subject = summarize(image, diffs) or f"Update {image} to pinned commit in {owner}/{repo}"
+        subject = (
+            summarize(image, diffs)
+            or f"Update {image} to pinned commit in {owner}/{repo}"
+        )
 
     body = "\n".join(body_lines)
     message = f"{subject}\n\n{body}\n"
