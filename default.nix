@@ -18,26 +18,10 @@
 }:
 
 let
-  # NixOS ships multiple versions of LibreSSL at the same time, and the default
-  # one is not always the latest one. However, if we pick one explicitly, we
-  # also have to update it explicitly. I'll take the default and submit a PR for
-  # Nixpkgs when it is outdated, or update here when needed.
-  libressl = pkgs.libressl;
-
   forgejo = pkgs.forgejo;
   outline = pkgs.outline;
   rauthy = pkgs.rauthy;
   valkey = pkgs.valkey;
-
-  nsd = (pkgs.nsd.override {
-    openssl = libressl;
-    withSystemd = false;
-    bind8Stats = true;
-    zoneStats = true;
-  }).overrideDerivation (oldAttrs: {
-    # Until https://github.com/NixOS/nixpkgs/pull/489566 is merged.
-    nativeBuildInputs = [ pkgs.pkg-config ];
-  });
 
   # Reconfigure Postgres to not be so heavy, we don't use all this stuff anyway.
   # With extensions or JIT, initdb cannot find the postgres binary, but we don't
@@ -171,18 +155,6 @@ let
       '';
   };
 
-  # TODO: This package brings in OpenSSL in addition to LibreSSL, and also Bash!
-  # Need to get rid of that!
-  imageNsd = buildImage rec {
-    label = "miniserver-nsd";
-    pkg = nsd;
-    extraBuildCommand =
-      ''
-      mkdir -p $out/etc/nsd
-      ln -s ${pkg}/bin/nsd $out/usr/bin/nsd
-      '';
-  };
-
   imageForgejo = buildImage rec {
     label = "miniserver-fj";
     pkg = forgejo;
@@ -283,7 +255,6 @@ in
       ''
       python3 ${./build_manifest.py} \
         forgejo=${imageForgejo} \
-        nsd=${imageNsd} \
         outline=${imageOutline} \
         postgres=${imagePostgres} \
         rauthy=${imageRauthy} \
