@@ -1,9 +1,9 @@
 # Miniserver
 
-Tools to build ingredients for a minimal webserver: EROFS images that contain
-Nginx, Lego, and NSD. These images are suitable for running under systemd on
-[Flatcar Container Linux][flatcar] (formerly [CoreOS][coreos]). A secure and
-simple way to host a static site.
+Tools to build self-contained EROFS images for packages from Nixpkgs, in
+particular Nginx, Lego, and NSD to run a webserver. These images are suitable
+for running under systemd on [Flatcar Container Linux][flatcar] (formerly
+[CoreOS][coreos]). A secure and simple way to host a static site.
 
 Features:
 
@@ -53,7 +53,7 @@ and its metadata:
 }
 ```
 
-The build involves the following:
+The build of the webserver components involves the following:
 
  * Take the package definitions for `nginx`, `lego`, and `nsd`, and any other
    packages from a pinned version of [Nixpkgs][nixpkgs].
@@ -78,7 +78,7 @@ images to servers. It will:
 
 To install or update:
 
-    ./miniserver.py deploy <hostname>...
+    ./miniserver.py deploy --image=<image>... <hostname>...
 
 You need to have built the images before it can be deployed, but because
 `miniserver.py` reads the json manifest, this is automatically enforced.
