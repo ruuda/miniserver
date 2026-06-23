@@ -26,6 +26,7 @@ import uuid
 
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Union
 
+from miniserver import Manifest
 from nix_store import ClosureInfo, Package, get_closure_info, run
 from nix_store import NIX_BIN, ensure_pinned_nix_version
 from nix_diff import Addition, Change, Diff, Removal, diff, format_difflist
@@ -139,19 +140,22 @@ class Diffs(NamedTuple):
         return len(self.build) + len(self.runtime)
 
 
-def get_union_closure_info(manifest_fname: str) -> ClosureInfo:
+def get_union_closure_info(manifest: Manifest) -> ClosureInfo:
     """
     For a given manfiest file, load the closure info of each package in it,
     and union those.
     """
-    with open(manifest_fname, "r", encoding="utf-8") as f:
-        manifest: Dict[str, Any] = json.load(f)
-
-    packages_fname = os.path.join(manifest["nix_store_path"], "packages.json")
+    packages_fname = os.path.join(manifest.nix_store_path, "packages.json")
     return get_closure_info(packages_fname)
 
 
-def try_update_nixpkgs(image: str, pinned_expr: str) -> Diffs:
+class UpdateResult(NamedTuple):
+    diff: Diffs
+    size_bytes_before: int
+    size_bytes_after: int
+
+
+def try_update_nixpkgs(image: str, pinned_expr: str) -> Optional[UpdateResult]:
     """
     Replace nixpkgs-pinned.nix with a newer version that fetches the latest
     commit in the given channel, and build default.nix. Return the resulting
@@ -194,12 +198,25 @@ def try_update_nixpkgs(image: str, pinned_expr: str) -> Diffs:
         ]
     )
 
-    before_info = get_union_closure_info(before_path)
-    after_info = get_union_closure_info(after_path)
+    before_manifest = Manifest.load(before_path)
+    after_manifest = Manifest.load(after_path)
+
+    # If the Nix store path of the image did not change, then for sure nothing
+    # changed, we don't even need to bother to check.
+    if before_manifest.id == after_manifest.id:
+        return None
+
+    before_info = get_union_closure_info(before_manifest)
+    after_info = get_union_closure_info(after_manifest)
 
     diffs_build = list(diff(sorted(before_info.build), sorted(after_info.build)))
     diffs_runtime = list(diff(sorted(before_info.runtime), sorted(after_info.runtime)))
-    return Diffs(diffs_build, diffs_runtime)
+
+    return UpdateResult(
+        diff=Diffs(diffs_build, diffs_runtime),
+        size_bytes_before=before_manifest.image_size_bytes,
+        size_bytes_after=after_manifest.image_size_bytes,
+    )
 
 
 def summarize(image: str, diffs: Diffs) -> Optional[str]:
@@ -285,7 +302,7 @@ def commit_nixpkgs_pinned(
     owner: str,
     repo: str,
     revision: Union[Branch, Commit],
-    diffs: Diffs,
+    update: UpdateResult,
 ) -> None:
     """
     Commit nixpkgs-pinned.nix, and include the diff in the message.
@@ -306,32 +323,39 @@ def commit_nixpkgs_pinned(
 
     body_lines = [*textwrap.wrap(message, width=72)]
 
-    if len(diffs.runtime) > 0:
+    growth = update.size_bytes_after / update.size_bytes_before - 1.0
+    body_lines += [
+        "",
+        (
+            "Image size: "
+            + f"{update.size_bytes_before * 1e-6:,.2f} MB -> "
+            + f"{update.size_bytes_after * 1e-6:,.2f} MB "
+            + f"({growth:+.1%})"
+        ),
+    ]
+
+    if len(update.diff.runtime) > 0:
         body_lines += [
             "",
             "Runtime dependencies:",
             "",
-            *format_difflist(diffs.runtime),
+            *format_difflist(update.diff.runtime),
         ]
 
-    if len(diffs.build) > 0:
+    if len(update.diff.build) > 0:
         body_lines += [
             "",
             "Build dependencies:",
             "",
-            *format_difflist(diffs.build),
+            *format_difflist(update.diff.build),
         ]
 
-    if isinstance(revision, Branch):
-        subject = (
-            summarize(image, diffs)
-            or f"Update {image} to latest commit in {owner}/{repo} {revision.name}"
-        )
-    else:
-        subject = (
-            summarize(image, diffs)
-            or f"Update {image} to pinned commit in {owner}/{repo}"
-        )
+    subject_opt = summarize(image, update.diff)
+    subject = subject_opt or (
+        f"Update {image} to latest commit in {owner}/{repo} {revision.name}"
+        if isinstance(revision, Branch)
+        else f"Update {image} to pinned commit in {owner}/{repo}"
+    )
 
     body = "\n".join(body_lines)
     message = f"{subject}\n\n{body}\n"
@@ -366,9 +390,9 @@ def main(owner: str, repo: str, branch_or_sha: str) -> None:
 
     for i, image in enumerate(images):
         print(f"[{i+1}/{n}] Building {image} ...")
-        diffs = try_update_nixpkgs(image, pinned_expr)
-        if len(diffs.runtime) > 0:
-            commit_nixpkgs_pinned(image, owner, repo, revision, diffs)
+        result = try_update_nixpkgs(image, pinned_expr)
+        if (result is not None) and (len(result.diff.runtime) > 0):
+            commit_nixpkgs_pinned(image, owner, repo, revision, result)
         else:
             # If there were no changes in the runtime paths, then the new pinned
             # revision is not useful to this project, so restore the previously

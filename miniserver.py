@@ -55,6 +55,11 @@ class Manifest(NamedTuple):
     nixpkgs_commit: str
     nixpkgs_date: str
 
+    @staticmethod
+    def load(fname: str) -> Manifest:
+        with open(fname, "r", encoding="utf-8") as f:
+            return Manifest(**json.load(f))
+
 
 def get_current_manifest(image: str) -> Manifest:
     ensure_pinned_nix_version()
@@ -66,8 +71,7 @@ def get_current_manifest(image: str) -> Manifest:
         "--file",
         f"images/{image}/default.nix",
     ).rstrip("\n")
-    with open(path, "r", encoding="utf-8") as f:
-        return Manifest(**json.load(f))
+    return Manifest.load(path)
 
 
 @contextmanager
