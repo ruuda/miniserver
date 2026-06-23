@@ -34,10 +34,11 @@ import sys
 import time
 import uuid
 
+from collections import defaultdict
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from hashlib import blake2b
-from typing import Dict, Iterator, List, NamedTuple, Tuple
+from typing import Dict, Iterator, List, NamedTuple, Tuple, Set
 
 from nix_store import NIX_BIN, ensure_pinned_nix_version, run
 
@@ -181,32 +182,43 @@ def get_store_size_bytes(tmp_path: str) -> int:
 def gc_store(tmp_path: str, max_size_bytes: int, subdirs: List[str]) -> None:
     sizes: Dict[str, int] = {}
     for pkg in subdirs:
-            pkg_path = os.path.join(tmp_path, pkg)
-            if not os.path.isdir(pkg_path):
-                continue
-            for version in os.listdir(pkg_path):
-                version_path = os.path.join(pkg_path, version)
-                size_bytes = sum(
-                    get_file_size_bytes(os.path.join(dirpath, fname))
-                    for dirpath, _dirnames, fnames in os.walk(version_path)
-                    for fname in fnames
-                )
-                sizes[f"{pkg}/{version}"] = size_bytes
+        pkg_path = os.path.join(tmp_path, pkg)
+        if not os.path.isdir(pkg_path):
+            continue
+        for version in os.listdir(pkg_path):
+            version_path = os.path.join(pkg_path, version)
+            size_bytes = sum(
+                get_file_size_bytes(os.path.join(dirpath, fname))
+                for dirpath, _dirnames, fnames in os.walk(version_path)
+                for fname in fnames
+            )
+            sizes[f"{pkg}/{version}"] = size_bytes
 
     # Build the ordered candidates for deletion, ordered by most recently
     # deployed first (those must be kept).
     candidates: Dict[str, Tuple[int, str]] = {}
 
+    # Per image, the versions to definitely keep. We keep the last two versions,
+    # to enable rollback to still work after we put the new image in place and
+    # activate it.
+    keep_versions: Dict[str, Set[str]] = defaultdict(lambda: set())
+
     with open(f"{tmp_path}/deploy.log", "r", encoding="utf-8") as f:
         for line in reversed(f.readlines()):
-            time, subdir, pkgname_ = line.strip().split()
+            time, subdir, _imgfile = line.strip().split()
+            img_name, version = subdir.split("/")
             if subdir in sizes and subdir not in candidates:
                 candidates[subdir] = sizes[subdir], time
 
+            keep = keep_versions[img_name]
+            if len(keep) < 2:
+                keep.add(subdir)
+
     budget_bytes = max_size_bytes
 
-    # Keep as many of the most recent releases as will fit the budget.
-    to_keep = set()
+    # Keep as many of the most recent releases as will fit the budget, and also
+    # the most recently deployed versions of every image/subdir we are touching.
+    to_keep = {v for vs in keep_versions.values() for v in vs}
     for name, (size, time) in candidates.items():
         if budget_bytes > size:
             to_keep.add(name)
@@ -267,10 +279,7 @@ def main() -> None:
         else:
             hosts.append(arg)
 
-    manifests = {
-        image: get_current_manifest(image)
-        for image in images
-    }
+    manifests = {image: get_current_manifest(image) for image in images}
 
     for host in hosts:
         if cmd == "deploy":
