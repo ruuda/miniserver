@@ -29,10 +29,6 @@ let
   rauthy = pkgs.rauthy;
   valkey = pkgs.valkey;
 
-  lego = pkgs.lego.overrideAttrs (old: {
-    patches = [ ./patches/0001-Allow-group-owner-to-read-certificates.patch ];
-  });
-
   nsd = (pkgs.nsd.override {
     openssl = libressl;
     withSystemd = false;
@@ -175,18 +171,6 @@ let
       '';
   };
 
-  imageLego = buildImage rec {
-    label = "miniserver-lego";
-    pkg = lego;
-    extraBuildCommand =
-      ''
-      mkdir -p $out/var/lib/lego/certificates
-      mkdir -p $out/var/www/acme
-      touch $out/etc/lego.conf
-      ln -s ${pkg}/bin/lego $out/usr/bin/lego
-      '';
-  };
-
   # TODO: This package brings in OpenSSL in addition to LibreSSL, and also Bash!
   # Need to get rid of that!
   imageNsd = buildImage rec {
@@ -299,7 +283,6 @@ in
       ''
       python3 ${./build_manifest.py} \
         forgejo=${imageForgejo} \
-        lego=${imageLego} \
         nsd=${imageNsd} \
         outline=${imageOutline} \
         postgres=${imagePostgres} \

@@ -113,6 +113,7 @@ in
   erofs.buildImageManifest rec {
     name = "nginx";
     pkg = customNginx;
+    minimize = true;
     extraBuildCommand =
       ''
       mkdir -p $out/etc/nginx
@@ -121,5 +122,4 @@ in
       mkdir -p $out/var/www
       ln -s ${pkg}/bin/nginx $out/usr/bin/nginx
       '';
-    minimize = true;
   }
