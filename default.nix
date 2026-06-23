@@ -128,18 +128,6 @@ let
       '';
   };
 
-  imageRauthy = buildImage rec {
-    label = "miniserver-rth";
-    pkg = rauthy;
-    extraBuildCommand =
-      ''
-      mkdir -p $out/etc/rauthy
-      mkdir -p $out/run/rauthy
-      mkdir -p $out/var/lib/rauthy
-      ln -s ${pkg}/bin/rauthy $out/usr/bin/rauthy
-      '';
-  };
-
   # TODO: I would really prefer to run Redict, but it's been abandoned in Nixpkgs.
   # It's trivial to build, so maybe I can revive and adopt the package.
   imageValkey = buildImage {
@@ -159,7 +147,6 @@ in
     buildCommand =
       ''
       python3 ${./build_manifest.py} \
-        rauthy=${imageRauthy} \
         valkey=${imageValkey} \
         > $out
       '';
