@@ -41,13 +41,15 @@ and its metadata:
 ```json
 {
   "name": "nginx",
-  "id": "5z6nqkyq650y2k76nzri59mbqyxijn0f",
-  "nix_store_path": "/nix/store/5z6nqkyq650y2k76nzri59mbqyxijn0f-nginx-1.31.0-image",
-  "img_store_path": "/var/lib/images/nginx/5z6nqk",
+  "id": "hsr674bfgqcmzdiw46jjpa99jxfkgn14",
+  "nix_store_path": "/nix/store/hsr674bfgqcmzdiw46jjpa99jxfkgn14-nginx-1.31.0-image",
+  "img_store_path": "/var/lib/images/nginx/hsr674",
   "image_file": "nginx-1.31.0.img",
   "image_size_bytes": 9658368,
   "verity_file": "nginx-1.31.0.img.verity",
-  "verity_roothash": "587e0afcd3b1bb4d4086aba1a4164c0bba56b6ff36502e1239cdfc15f12854d1"
+  "verity_roothash": "1f0657688222cc231bbc6749da005dec7b9a6833e8cf82472b42153c24e45304",
+  "nixpkgs_commit": "69d860e0e0e115deecf32e235e279cca0bb67545",
+  "nixpkgs_date": "2026-05-15T09:23:15Z"
 }
 ```
 

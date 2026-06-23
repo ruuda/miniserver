@@ -165,6 +165,10 @@
       pkgs.stdenv.mkDerivation {
         name = "${pkg.name}-image.json";
         nativeBuildInputs = [ pkgs.python3 ];
-        buildCommand = "python3 ${./build_manifest.py} ${name} ${image} > $out";
+        buildCommand = ''
+          python3 ${./build_manifest.py} \
+            ${name} ${image} \
+            ${pin.commit} ${pin.commit_date} > $out
+        '';
       };
 }
