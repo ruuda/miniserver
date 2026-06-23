@@ -23,27 +23,6 @@ let
   rauthy = pkgs.rauthy;
   valkey = pkgs.valkey;
 
-  # Reconfigure Postgres to not be so heavy, we don't use all this stuff anyway.
-  # With extensions or JIT, initdb cannot find the postgres binary, but we don't
-  # care so much about JIT at this point.
-  postgres = (pkgs.postgresql_18.override {
-    curlSupport = false;
-    gssSupport = false;
-    jitSupport = false;
-    ldapSupport = false;
-    nlsSupport = false;
-    numaSupport = false;
-    pamSupport = false;
-    perlSupport = false;
-    pythonSupport = false;
-    tclSupport = false;
-    selinuxSupport = false;
-    # We could slim it down further by omitting systemd support, but alright,
-    # this is fairly heavy already, let's just have it.
-    systemdSupport = true;
-    uringSupport = true;
-  });
-
   # Put together the filesystem by copying from and symlinking to the Nix store.
   # Later we build this into an image with `mkfs.erofs`. Symlinks are included
   # verbatim, so we place symlinks into `/nix/store`, not into `$out`. When the
@@ -178,27 +157,6 @@ let
       extraPackages = with pkgs; [ bash coreutils git git-lfs ];
   };
 
-  imagePostgres = buildImage rec {
-    label = "miniserver-pg";
-    pkg = postgres;
-    extraBuildCommand =
-      ''
-      mkdir -p $out/var/lib/postgres/data
-      mkdir -p $out/var/log/postgres
-      mkdir -p $out/run/postgres
-      mkdir -p $out/usr/lib
-      touch $out/var/lib/postgres/data/pg_hba.conf
-      touch $out/var/lib/postgres/data/postgresql.conf
-      ln -s ${pkg}/bin/* $out/usr/bin
-      ln -s ${pkg}/lib/* $out/usr/lib
-      ln -s ${pkg}/share/postgresql $out/usr/share
-      ln -s ${pkgs.bash}/bin/bash $out/usr/bin/sh
-      '';
-
-    # Unfortunately, initdb invokes /bin/sh, so we need a shell.
-    extraPackages = [ pkgs.bash ];
-  };
-
   imageOutline = buildImage rec {
     label = "miniserver-otln";
     pkg = outline;
@@ -256,7 +214,6 @@ in
       python3 ${./build_manifest.py} \
         forgejo=${imageForgejo} \
         outline=${imageOutline} \
-        postgres=${imagePostgres} \
         rauthy=${imageRauthy} \
         valkey=${imageValkey} \
         > $out

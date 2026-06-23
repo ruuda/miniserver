@@ -69,7 +69,7 @@
           # The steps below minimize the filesystem size. If that is not
           # requested, we are done here.
           if [ -z "$minimize" ]; then
-            exit 1
+            exit 0
           fi
 
           # Slim down the glibc installation by removing unused locale data. We do
