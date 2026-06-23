@@ -324,9 +324,15 @@ let
       ln -s ${pkg}/bin/forgejo $out/usr/bin
       ln -s ${pkgs.git}/bin/* $out/usr/bin
       ln -s ${pkgs.git-lfs}/bin/* $out/usr/bin
+
+      # Forgejo creates .git/hooks that use `/usr/bin/env bash` as #! line,
+      # and those scripts rely on `cat` and `basename`, so let's just pull in
+      # the entire coreutils.
+      ln -s ${pkgs.coreutils}/bin/* $out/usr/bin
+      ln -s ${pkgs.bash}/bin/bash $out/usr/bin/bash
       '';
 
-      extraPackages = with pkgs; [ git git-lfs ];
+      extraPackages = with pkgs; [ bash coreutils git git-lfs ];
   };
 
   imagePostgres = buildImage rec {
