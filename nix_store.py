@@ -36,7 +36,7 @@ class Package(NamedTuple):
     def __str__(self) -> str:
         return self.name + (f"-{self.version}" if self.version != "" else "")
 
-    def __lt__(self, other) -> bool:
+    def __lt__(self, other) -> bool:  # type: ignore[no-untyped-def]
         # Overload the comparison operator, to give packages where group=None
         # an ordering with respect to pacakges that do have a group. Without
         # this, sorting a list of packages can fail with a TypeError.

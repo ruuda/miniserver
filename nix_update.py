@@ -85,7 +85,8 @@ def prefetch_url(url: str) -> str:
         url,
     )
     result = json.loads(result_raw)
-    return result["hash"]
+    result_hash: str = result["hash"]
+    return result_hash
 
 
 def format_fetch_nixpkgs_tarball(owner: str, repo: str, commit_hash: str) -> str:
