@@ -9,9 +9,10 @@ the changes in the commit message.
 
 Usage:
 
-  nix_update.py [<owner> [<repo> [<branch> | <commit-hash>]]]
+  nix_update.py [<owner> [<repo> [<branch> | <commit-hash>] [<images>]]]
 
 Defaults to the NixOS/nixpkgs repository and the nixos-unstable branch.
+<images> is a comma-separated list of images to update, or empty to update all.
 """
 
 import datetime
@@ -370,14 +371,17 @@ def commit_nixpkgs_pinned(
         print(f"Committed update to {owner}/{repo} {revision.head}")
 
 
-def main(owner: str, repo: str, branch_or_sha: str) -> None:
+def main(owner: str, repo: str, branch_or_sha: str, images_csv: str) -> None:
     """
     Update to the latest commit in the given branch (called channel for Nixpkgs),
     and commit that, if newer versions of a dependency are available.
+
+    By default updates all images, unless a non-empty comma-separated list of
+    images is given.
     """
     ensure_pinned_nix_version()
 
-    images = os.listdir("images")
+    images = images_csv.split(",") if images_csv != "" else os.listdir("images")
     n = 1 + len(images)
 
     revision = get_latest_revision(owner, repo, branch_or_sha)
@@ -421,4 +425,5 @@ if __name__ == "__main__":
         owner=getarg(1, "nixos"),
         repo=getarg(2, "nixpkgs"),
         branch_or_sha=getarg(3, "nixos-unstable"),
+        images_csv=getarg(4, ""),
     )
