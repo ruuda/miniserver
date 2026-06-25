@@ -15,6 +15,7 @@ let
   nsd = (pkgs.nsd.override {
     openssl = pkgs.libressl;
     withSystemd = false;
+    withDnstap = false;
     bind8Stats = true;
     zoneStats = true;
   });
