@@ -10,10 +10,18 @@ let
   pkgs = import pin.tarball {};
   erofs = (import ./../../build-erofs.nix) { inherit pin; };
 
+  # Libevent by default pulls in OpenSSL. For NSD we do not need TLS support in
+  # libevent itself, so just disable it.
+  libevent = (pkgs.libevent.override {
+    sslSupport = false;
+    openssl = null;
+  });
+
   # TODO: This package brings in OpenSSL in addition to LibreSSL, and also Bash!
   # Need to get rid of that!
   nsd = (pkgs.nsd.override {
     openssl = pkgs.libressl;
+    libevent = libevent;
     withSystemd = false;
     withDnstap = false;
     bind8Stats = true;
