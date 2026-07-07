@@ -17,8 +17,6 @@ let
     openssl = null;
   });
 
-  # TODO: This package brings in OpenSSL in addition to LibreSSL, and also Bash!
-  # Need to get rid of that!
   nsd = (pkgs.nsd.override {
     openssl = pkgs.libressl;
     libevent = libevent;
