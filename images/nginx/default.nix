@@ -58,7 +58,7 @@ let
     }
   '';
 
-  customNginx = lightNginx.overrideDerivation (oldAttrs: {
+  customNginx = lightNginx.overrideAttrs (oldAttrs: {
     # Override the light nginx package to cut down on the dependencies further.
     # I also want to get rid of geoip and all of the xml stuff, but the package
     # offers no options for that. Furthermore, enable the ngx_brotli module.
