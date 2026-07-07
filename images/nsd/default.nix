@@ -26,7 +26,9 @@ let
     withDnstap = false;
     bind8Stats = true;
     zoneStats = true;
-  });
+  }).overrideAttrs {
+    patches = [ ./inttypes.patch ];
+  };
 in
   erofs.buildImageManifest rec {
     name = "nsd";

@@ -1,0 +1,33 @@
+From 15cf8736e3bfa0fd8f426b13637c44e638fa0d40 Mon Sep 17 00:00:00 2001
+From: Ruud van Asseldonk <dev@ruuda.nl>
+Date: Tue, 7 Jul 2026 13:08:04 +0200
+Subject: [PATCH] Include inttypes.h from metrics.c
+
+When compiling in Nixpkgs with GCC, the compiler says:
+
+    metrics.c:402:47: error: expected ')' before 'PRIu64'
+    metrics.c:28:1: note: 'PRIu64' is defined in header '<inttypes.h>';
+    this is probably fixable by adding '#include <inttypes.h>'
+
+Confirmed that this does indeed make it compile. This seems to be a
+recurring footgut, this fix is similar to 70a099e3666afa245f493520858979
+and 9a1a5ed7ae928ff5fb75ef7798832158bc996df1.
+---
+ metrics.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/metrics.c b/metrics.c
+index e8694626..5a7ca405 100644
+--- a/metrics.c
++++ b/metrics.c
+@@ -19,6 +19,7 @@
+ #include <event2/event.h>
+ #include <event2/http.h>
+ #include <ctype.h>
++#include <inttypes.h>
+ 
+ #include "nsd.h"
+ #include "xfrd.h"
+-- 
+2.54.0
+
