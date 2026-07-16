@@ -136,6 +136,12 @@ class Package(NamedTuple):
             return None
 
         env = derivation["env"]
+
+        # Newer derivations pass everyting in this json key rather than separate
+        # env vars.
+        if "__json" in env:
+            env = json.loads(env["__json"])
+
         pname = env.get("pname")
         name = env.get("name")
         version = env.get("version")
