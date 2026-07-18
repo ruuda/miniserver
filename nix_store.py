@@ -15,12 +15,12 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set
 
 # Although nix-prefetch-url was always broken, there is a newer 'nix flake
 # prefech' that we can use instead.
-NIX_BIN = "/nix/store/clfkfybsfi0ihp7hjkz4dkgphj7yy0l4-nix-2.28.3/bin"
+NIX_BIN = "/nix/store/q6yfdws28aj556jlz5yayaggiddmb0b5-nix-2.35.1/bin"
 
 
 def ensure_pinned_nix_version() -> None:
     if not os.path.isfile(f"{NIX_BIN}/nix"):
-        print("Getting Nix 2.28.3 ...")
+        print("Getting Nix 2.35.1 ...")
         run("nix-store", "--realise", os.path.dirname(NIX_BIN))
 
 
@@ -129,22 +129,25 @@ class Package(NamedTuple):
             # network.)
             return None
 
-        if len(derivation["inputDrvs"]) <= 2:
+        if len(derivation["inputs"]["drvs"]) <= 2:
             # Some things are helper utils, not packages. We assume a package
             # has at least three inputs: Bash, stdenv, and its fetched source.
             # These helpers often have only two, no source.
             return None
 
-        env = derivation["env"]
-
         # Newer derivations pass everyting in this json key rather than separate
-        # env vars.
-        if "__json" in env:
-            env = json.loads(env["__json"])
+        # env vars, Nix 2.28 put that in `__json` in `env`, 2.35 puts it in
+        # separate `structuredAttrs`.
+        if "structuredAttrs" in derivation:
+            attrs = derivation["structuredAttrs"]
+        elif "__json" in derivation["env"]:
+            attrs = json.loads(derivation["env"]["__json"])
+        else:
+            attrs = derivation["env"]
 
-        pname = env.get("pname")
-        name = env.get("name")
-        version = env.get("version")
+        pname = attrs.get("pname")
+        name = attrs.get("name")
+        version = attrs.get("version")
 
         if name is None:
             # Packages have names.
@@ -219,7 +222,8 @@ def get_packages_from_derivations(drv_paths: Set[str]) -> Iterable[Package]:
             *existing_paths,
         )
     )
-    for drv_path, derivation in path_to_drv.items():
+    assert path_to_drv["version"] == 4, "Expect derivation format 4."
+    for drv_path, derivation in path_to_drv["derivations"].items():
         package = Package.parse_derivation(derivation)
         if package is not None:
             yield package
