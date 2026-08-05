@@ -10,7 +10,10 @@ let
   pkgs = import pin.tarball {};
   erofs = (import ./../../build-erofs.nix) { inherit pin; };
 
-  libressl = pkgs.libressl;
+  # We set up the filesystem image to mount the host's CA certificates inside,
+  # so we don't need to bring them along in the closure.
+  libressl = pkgs.libressl_4_3.override { cacert = ""; };
+
   lightNginx = pkgs.nginxMainline.override {
     # Remove dependency on libgd; It brings in a lot of transitive dependencies
     # that we don't need (fontconfig, image codecs, etc.). Also disable other

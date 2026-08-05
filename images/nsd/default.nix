@@ -12,13 +12,17 @@ let
 
   # Libevent by default pulls in OpenSSL. For NSD we do not need TLS support in
   # libevent itself, so just disable it.
-  libevent = (pkgs.libevent.override {
+  libevent = pkgs.libevent.override {
     sslSupport = false;
     openssl = null;
-  });
+  };
+
+  # We set up the filesystem image to mount the host's CA certificates inside,
+  # so we don't need to bring them along in the closure.
+  libressl = pkgs.libressl_4_3.override { cacert = ""; };
 
   nsd = (pkgs.nsd.override {
-    openssl = pkgs.libressl;
+    openssl = libressl;
     libevent = libevent;
     withSystemd = false;
     withDnstap = false;
