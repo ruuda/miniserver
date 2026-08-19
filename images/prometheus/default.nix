@@ -49,8 +49,12 @@ in
     minimize = true;
     extraBuildCommand =
       ''
-      touch $out/etc/prometheus.yml
-      touch $out/etc/alertmanager.yml
+      # Make both a directory and a file, so we can bind-mount either into the
+      # deployment.
+      mkdir -p $out/etc/prometheus $out/etc/alertmanager
+      touch $out/etc/prometheus/prometheus.yml
+      touch $out/etc/alertmanager/alertmanager.yml
+      mkdir -p $out/var/lib/prometheus
       ln -s ${prometheus}/bin/prometheus $out/usr/bin/prometheus
       ln -s ${alertmanager}/bin/alertmanager $out/usr/bin/alertmanager
       '';
