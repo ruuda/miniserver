@@ -11,7 +11,7 @@ let
   erofs = (import ./../../build-erofs.nix) { inherit pin; };
 
   prometheus = pkgs.prometheus.override {
-    # Disable stuff we don't use to reduce attack surface.
+    # Disable stuff we don't use to reduce binary size and attack surface.
     enableAWS = false;
     enableAzure = false;
     enableConsul = false;
@@ -36,7 +36,7 @@ let
     enableXDS = false;
     enableZookeeper = false;
 
-    # THis is enabled by default, but let's be explicit about it.
+    # This is enabled by default, but let's be explicit about it.
     enableDNS = true;
   };
 
