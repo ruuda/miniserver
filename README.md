@@ -79,10 +79,23 @@ images to servers. It will:
 
 To install or update:
 
-    ./miniserver.py deploy --image=<image>... <hostname>...
+    ./miniserver.py deploy <tree>
 
-You need to have built the images before it can be deployed, but because
-`miniserver.py` reads the json manifest, this is automatically enforced.
+Where `<tree>` is the path to a directory with the following structure:
+
+    <tree>
+    ├── h1.example.com
+    │   └── images.json
+    └── h2.example.com
+        └── images.json
+
+Every subdirectory should be a hostname, and in that directory should be a file
+`images.json` which contains a json list with the manifests of the images that
+should be deployed on that host. This layout is compatible with a
+[Deptool config tree][deptool]. The images need to exist in your local Nix
+store, which they will if you built them before.
+
+[deptool]: https://docs.ruuda.nl/deptool/directory_layout/
 
 ## Running
 
