@@ -7,11 +7,11 @@ Miniserver -- deploy self-contained erofs images for webserver software
 USAGE
 
     miniserver.py <command> <host>...
-    miniserver.py deploy --image=<img>... <host>...
+    miniserver.py deploy <tree> [--image=<img>...] [--host=<host>...]
 
 COMMANDS
 
-   deploy     Deploy the currently checked-out version.
+   deploy     Deploy images to hosts.
    status     Print store details and recent deployment log.
    gc         Remove old versions from the store.
               Note, gc also happens automatically after deploy, the manual
@@ -19,11 +19,16 @@ COMMANDS
 
 OPTIONS
 
-   --image    Select the image to deploy. Can be provided multiple times.
+   --image    Limit the image to deploy. Can be provided multiple times.
+   --host     Limit the host to deploy to. Can be provided multiple times.
 
 ARGUMENTS
 
     <host>    The hosts to deploy to, must be an ssh hostname.
+    <tree>    A directory tree with one directory per host to deploy to
+              (the directory name must be the hostname), and inside each
+              directory, a file 'images.json' that contains a json list
+              of the image manifests to deploy (as built with 'nix build').
 """
 
 import json
@@ -38,7 +43,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from hashlib import blake2b
-from typing import Dict, Iterator, List, NamedTuple, Tuple, Set
+from typing import Dict, Iterator, List, NamedTuple, Optional, Tuple, Set
 
 from nix_store import NIX_BIN, ensure_pinned_nix_version, run
 
@@ -61,18 +66,9 @@ class Manifest(NamedTuple):
         with open(fname, "r", encoding="utf-8") as f:
             return Manifest(**json.load(f))
 
-
-def get_current_manifest(image: str) -> Manifest:
-    ensure_pinned_nix_version()
-    path = run(
-        f"{NIX_BIN}/nix",
-        "--extra-experimental-features",
-        "nix-command",
-        "path-info",
-        "--file",
-        f"images/{image}/default.nix",
-    ).rstrip("\n")
-    return Manifest.load(path)
+    def save(self, fname: str) -> None:
+        with open(fname, "w", encoding="utf-8") as f:
+            json.dump(self._asdict(), f, indent=2)
 
 
 @contextmanager
@@ -153,6 +149,22 @@ def deploy_image(
     now = datetime.now(timezone.utc)
 
     os.makedirs(target_dir, exist_ok=True)
+
+    # If the image already exists, there is nothing for us to do here.
+    target_manifest = f"{target_dir}/image.json"
+    target_manifest_new = f"{target_dir}/image_partial.json"
+    try:
+        existing_manifest = Manifest.load(target_manifest)
+        if existing_manifest == manifest:
+            return
+        else:
+            print("Warning: Encountered different manifest, overwriting image.")
+
+    except FileNotFoundError:
+        pass
+
+    manifest.save(target_manifest_new)
+
     for fname in [manifest.image_file, manifest.verity_file]:
         src = f"{manifest.nix_store_path}/{fname}"
         dst = f"{target_dir}/{fname}"
@@ -163,6 +175,11 @@ def deploy_image(
         # It's not worth complicating things with `-o direct_io` or separate
         # SSH invocations to verify the checksums.
         shutil.copyfile(src, dst)
+
+    # Flush before we move image.json into its final place, we want image.json
+    # to exist only if the entire image has been written.
+    os.sync()
+    os.rename(target_manifest_new, target_manifest)
 
     # Record when we deployed this version.
     with open(f"{tmp_path}/deploy.log", "a", encoding="utf-8") as deploylog:
@@ -257,6 +274,55 @@ def gc_store(tmp_path: str, max_size_bytes: int, subdirs: List[str]) -> None:
         print(" deleted")
 
 
+class DeploymentPlan(NamedTuple):
+    """
+    Load a deployment plan for a cluster from a config tree directory.
+    """
+
+    # Per host, the images that should be deployed there.
+    hosts: Dict[str, List[Manifest]]
+
+    @staticmethod
+    def from_tree(tree_path: str) -> DeploymentPlan:
+        """
+        Load the plan from a directory structure where every directory is one
+        host, and inside every directory is an `images.json` with manifests.
+        """
+        result: Dict[str, List[Manifest]] = {}
+        for path in os.listdir(tree_path):
+            try:
+                with open(
+                    os.path.join(tree_path, path, "images.json"), "r", encoding="utf-8"
+                ) as f:
+                    raw = json.load(f)
+                    result[path] = [Manifest(**m) for m in raw]
+
+            except (FileNotFoundError, NotADirectoryError):
+                pass
+
+        return DeploymentPlan(result)
+
+    def filter_hosts(self, hosts: List[str]) -> DeploymentPlan:
+        """
+        Prune all hosts except those that occur in `hosts`.
+        """
+        return DeploymentPlan({h: ms for h, ms in self.hosts.items() if h in hosts})
+
+    def filter_images(self, images: List[str]) -> DeploymentPlan:
+        """
+        Prune all images except those that occur in `images`.
+        """
+        return DeploymentPlan(
+            {h: [m for m in ms if m.name in images] for h, ms in self.hosts.items()}
+        )
+
+    def prune_empty(self) -> DeploymentPlan:
+        """
+        Prune all hosts that have no images to deploy there.
+        """
+        return DeploymentPlan({h: ms for h, ms in self.hosts.items() if len(ms) > 0})
+
+
 def main() -> None:
     args = sys.argv[1:]
 
@@ -265,32 +331,61 @@ def main() -> None:
         sys.exit(1)
 
     cmd, args = args[0], args[1:]
-    if cmd not in ("deploy", "gc", "status", "install"):
+    if cmd not in ("deploy", "gc", "status"):
         print("Invalid command:", cmd)
         print(__doc__)
         sys.exit(1)
 
     if len(args) == 0:
-        print("Missing <host>")
+        print("Missing <tree>")
         print(__doc__)
         sys.exit(1)
 
     images = []
     hosts = []
+    config_dir: Optional[str] = None
 
     for arg in args:
         if arg.startswith("--image="):
             images.append(arg.removeprefix("--image="))
+        elif arg.startswith("--host="):
+            hosts.append(arg.removeprefix("--host="))
+        elif config_dir is None:
+            config_dir = arg
         else:
-            hosts.append(arg)
+            print("Unexpected argument:", arg)
+            print(__doc__)
+            sys.exit(1)
 
-    manifests = {image: get_current_manifest(image) for image in images}
+    if config_dir is None:
+        print("Expected <tree>")
+        print(__doc__)
+        sys.exit(1)
 
-    for host in hosts:
-        if cmd == "deploy":
-            print(f"Connecting to {host} ...")
+    plan = DeploymentPlan.from_tree(config_dir)
+
+    if len(images) > 0:
+        plan = plan.filter_images(images)
+
+    if len(hosts) > 0:
+        plan = plan.filter_hosts(hosts)
+
+    plan = plan.prune_empty()
+
+    for host, manifests in plan.hosts.items():
+        print(host)
+        for manifest in manifests:
+            print(
+                f"  {manifest.name:10} {manifest.version:8} "
+                f"{manifest.image_size_bytes / 1e6:5.1f} MB  {manifest.id}"
+            )
+
+    if cmd == "deploy":
+        for host, manifests in plan.hosts.items():
+            images = [m.name for m in manifests]
+            print(f"\nConnecting to {host} ...")
             with sshfs(host) as tmp_path:
-                for name, manifest in manifests.items():
+                for manifest in manifests:
                     print(f"=> {manifest.img_store_path}/{manifest.image_file}")
                     deploy_image(tmp_path, manifest)
                 gc_store(
@@ -299,7 +394,9 @@ def main() -> None:
                     subdirs=images,
                 )
 
-        if cmd == "status":
+    if cmd == "status":
+        for host, manifests in plan.hosts.items():
+            print(f"\nConnecting to {host} ...")
             with sshfs(host) as tmp_path:
                 store_size_bytes = get_store_size_bytes(tmp_path)
                 store_size_mb = store_size_bytes / 1e6
@@ -314,7 +411,10 @@ def main() -> None:
                 except FileNotFoundError:
                     print("  (deploy log is empty)")
 
-        if cmd == "gc":
+    if cmd == "gc":
+        for host, manifests in plan.hosts.items():
+            print(f"\nConnecting to {host} ...")
+            images = [m.name for m in manifests]
             with sshfs(host) as tmp_path:
                 gc_store(
                     tmp_path,
