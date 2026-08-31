@@ -29,7 +29,6 @@ let
     bind8Stats = true;
     zoneStats = true;
   }).overrideAttrs {
-    patches = [ ./inttypes.patch ];
     # Remove this script we don't need to avoid a Bash dependency.
     postInstall = "rm $out/sbin/nsd-control-setup";
   };
