@@ -28,7 +28,10 @@ in
     minimize = true;
     extraBuildCommand =
       ''
-      mkdir -p $out/etc/prometheus
+      # Create a mount point where the systemd unit can mount the host's root
+      # file system. It needs to be available for the node_exporter to be able
+      # to report properties about filesystem usage.
+      mkdir -p $out/host
       ln -s ${node-exporter}/bin/node_exporter $out/usr/bin/node_exporter
       ln -s ${smartctl-exporter}/bin/smartctl_exporter $out/usr/bin/smartctl_exporter
       '';
