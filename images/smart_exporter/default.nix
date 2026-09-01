@@ -16,23 +16,21 @@ let
     postInstall = "rm $out/etc/smartd_warning.sh";
   };
 
-  node-exporter = pkgs.prometheus-node-exporter;
   smartctl-exporter = pkgs.prometheus-smartctl-exporter.override {
     smartmontools = smartmontools;
   };
 in
   erofs.buildImageManifest rec {
-    name = "exporters";
-    pkg = node-exporter;
-    extraPackages = [ smartctl-exporter ];
+    # `ctl` removed from the name to stay in the 15 char limit.
+    name = "smart_exporter";
+    pkg = smartctl-exporter;
     minimize = true;
     extraBuildCommand =
       ''
       # Create a mount point where the systemd unit can mount the host's root
-      # file system. It needs to be available for the node_exporter to be able
+      # file system. It needs to be available for the exporter to be able
       # to report properties about filesystem usage.
       mkdir -p $out/host
-      ln -s ${node-exporter}/bin/node_exporter $out/usr/bin/node_exporter
       ln -s ${smartctl-exporter}/bin/smartctl_exporter $out/usr/bin/smartctl_exporter
       '';
   }
