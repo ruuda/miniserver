@@ -376,7 +376,7 @@ def main() -> None:
         print(host)
         for manifest in manifests:
             print(
-                f"  {manifest.name:10} {manifest.version:8} "
+                f"  {manifest.name:15} {manifest.version:8} "
                 f"{manifest.image_size_bytes / 1e6:5.1f} MB  {manifest.id}"
             )
 
