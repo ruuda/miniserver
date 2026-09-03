@@ -23,7 +23,9 @@ in
     extraBuildCommand =
       ''
       mkdir -p $out/var/lib/stalwart
+      mkdir -p $out/var/log/stalwart
       mkdir -p $out/run/stalwart
+      mkdir -p $out/etc/stalwart
       ln -s ${pkg}/bin/stalwart $out/usr/bin/stalwart
       '';
   }
