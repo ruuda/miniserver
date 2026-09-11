@@ -55,6 +55,7 @@ in
       touch $out/etc/prometheus/prometheus.yml
       touch $out/etc/alertmanager/alertmanager.yml
       mkdir -p $out/var/lib/prometheus
+      mkdir -p $out/var/lib/alertmanager
       ln -s ${prometheus}/bin/prometheus $out/usr/bin/prometheus
       ln -s ${alertmanager}/bin/alertmanager $out/usr/bin/alertmanager
       '';
