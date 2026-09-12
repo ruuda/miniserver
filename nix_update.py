@@ -18,6 +18,7 @@ Defaults to the NixOS/nixpkgs repository and the nixos-unstable branch.
 import datetime
 import json
 import os
+import random
 import re
 import subprocess
 import sys
@@ -156,7 +157,13 @@ class UpdateResult(NamedTuple):
     size_bytes_after: int
 
 
-def try_update_nixpkgs(image: str, pinned_expr: str) -> Optional[UpdateResult]:
+class UpdateError(NamedTuple):
+    message: str
+
+
+def try_update_nixpkgs(
+    image: str, pinned_expr: str
+) -> UpdateResult | UpdateError | None:
     """
     Replace nixpkgs-pinned.nix with a newer version that fetches the latest
     commit in the given channel, and build default.nix. Return the resulting
@@ -166,7 +173,7 @@ def try_update_nixpkgs(image: str, pinned_expr: str) -> Optional[UpdateResult]:
     before_path = f"{tmp_path}-before"
     after_path = f"{tmp_path}-after"
 
-    subprocess.run(
+    result = subprocess.run(
         [
             f"{NIX_BIN}/nix",
             "--extra-experimental-features",
@@ -179,6 +186,9 @@ def try_update_nixpkgs(image: str, pinned_expr: str) -> Optional[UpdateResult]:
         ]
     )
 
+    if result.returncode != 0:
+        return UpdateError("Failed to build 'before' version.")
+
     os.rename(
         f"images/{image}/nixpkgs-pinned.nix",
         f"images/{image}/nixpkgs-pinned.nix.bak",
@@ -186,7 +196,7 @@ def try_update_nixpkgs(image: str, pinned_expr: str) -> Optional[UpdateResult]:
     with open(f"images/{image}/nixpkgs-pinned.nix", "w", encoding="utf-8") as f:
         f.write(pinned_expr)
 
-    subprocess.run(
+    result = subprocess.run(
         [
             f"{NIX_BIN}/nix",
             "--extra-experimental-features",
@@ -198,6 +208,10 @@ def try_update_nixpkgs(image: str, pinned_expr: str) -> Optional[UpdateResult]:
             after_path,
         ]
     )
+
+    if result.returncode != 0:
+        # The caller renames the .bak back into the original place.
+        return UpdateError("Failed to build 'after' version.")
 
     before_manifest = Manifest.load(before_path)
     after_manifest = Manifest.load(after_path)
@@ -381,7 +395,11 @@ def main(owner: str, repo: str, branch_or_sha: str, images_csv: str) -> None:
     """
     ensure_pinned_nix_version()
 
+    # Handle the images in random order, so that if one of the images causes the
+    # script to crash, it does not forever block updating packages that come
+    # after it in the order.
     images = images_csv.split(",") if images_csv != "" else os.listdir("images")
+    random.shuffle(images)
     n = 1 + len(images)
 
     revision = get_latest_revision(owner, repo, branch_or_sha)
@@ -395,25 +413,35 @@ def main(owner: str, repo: str, branch_or_sha: str, images_csv: str) -> None:
     for i, image in enumerate(images):
         print(f"[{i+1}/{n}] Building {image} ...")
         result = try_update_nixpkgs(image, pinned_expr)
-        if (result is not None) and (len(result.diff.runtime) > 0):
-            commit_nixpkgs_pinned(image, owner, repo, revision, result)
-        else:
-            # If there were no changes in the runtime paths, then the new pinned
-            # revision is not useful to this project, so restore the previously
-            # pinned revision in order to not introduce unnecessary churn. The
-            # store paths can still change. That might mean that e.g. the
-            # compiler changed.
+        did_update = False
+
+        match result:
+            case UpdateResult(diff, size_before, size_after) if len(diff.runtime) > 0:
+                commit_nixpkgs_pinned(image, owner, repo, revision, result)
+                did_update = True
+
+        if not did_update:
+            # If there were no changes in the runtime paths, then the new
+            # pinned revision is not useful to this project, so restore
+            # the previously pinned revision in order to not introduce
+            # unnecessary churn. The store paths can still change. That
+            # might mean that e.g. the compiler changed.
             os.rename(
                 f"images/{image}/nixpkgs-pinned.nix.bak",
                 f"images/{image}/nixpkgs-pinned.nix",
             )
 
-            if isinstance(revision, Branch):
-                print(
-                    f"Latest commit in {revision.name} branch has no interesting changes."
-                )
-            else:
-                print(f"Commit {revision.head} has no interesting changes.")
+        match result:
+            case UpdateError(message):
+                print("Error while trying to update.")
+
+            case None:
+                if isinstance(revision, Branch):
+                    print(
+                        f"Latest commit in {revision.name} branch has no interesting changes."
+                    )
+                else:
+                    print(f"Commit {revision.head} has no interesting changes.")
 
 
 def getarg(n: int, default: str) -> str:
