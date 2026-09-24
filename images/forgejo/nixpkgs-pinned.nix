@@ -1,10 +1,10 @@
 rec {
   owner = "nixos";
   repo = "nixpkgs";
-  commit = "b1b875982b17dabde9b4a37f3e229e74913e6db3";
-  commit_date = "2026-09-16T08:07:56Z";
+  commit = "4975466d324710c576dc11ad614684e6bd8cad8e";
+  commit_date = "2026-09-23T17:48:10Z";
   tarball = fetchTarball {
     url = "https://github.com/${owner}/${repo}/archive/${commit}.tar.gz";
-    sha256 = "sha256-zVxLZiSnmaaPLwnhj7pwmqe3axBg/C6nG5JZsJMh2g4=";
+    sha256 = "sha256-xJ+X4hBtOcAFGBOe5nAMyMUeF9foJBmIOu3NjBqBycU=";
   };
 }
