@@ -18,6 +18,7 @@ in
       ''
       mkdir -p $out/run/bulwark
       mkdir -p $out/etc/bulwark
+      mkdir -p $out/var/lib/bulwark
       ln -s ${pkg}/bin/bulwark $out/usr/bin/bulwark
       '';
   }
